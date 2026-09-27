@@ -1,22 +1,39 @@
 {
   "expo": {
-    "name": "lightweight-scanner",
-    "slug": "lightweight-scanner",
+    "name": "Lightweight PDF Scanner",
+    "slug": "lightweight-pdf-scanner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lightweightscanner",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.lightweight.pdfscanner",
+      "supportsTablet": false,
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Aplikasi ini memerlukan akses ke kamera untuk memindai dokumen fisik ke format PDF berkualitas tinggi.",
+        "NSPhotoLibraryUsageDescription": "Aplikasi ini memerlukan akses ke galeri untuk menyimpan dan mengelola dokumen PDF hasil pindaian."
+      }
     },
     "android": {
+      "package": "com.lightweight.pdfscanner",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -28,15 +45,43 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0F172A",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 80
+        }
+      ],
+      "react-native-document-scanner-plugin",
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Izinkan Lightweight PDF Scanner mengakses galeri untuk menyimpan dokumen PDF.",
+          "savePhotosPermission": "Izinkan Lightweight PDF Scanner menyimpan file PDF hasil pindaian."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "abiFilters": [
+              "arm64-v8a"
+            ],
+            "enableMinifyInReleaseBuilds": true
+          }
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c4758bd7-80f0-40de-8f70-a3f0c16800da"
+      }
     }
   }
 }
