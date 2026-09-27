@@ -1,122 +1,132 @@
 # Lightweight PDF Scanner
 
-Aplikasi mobile ringan untuk memindai dokumen fisik menjadi PDF berkualitas tinggi. Lightweight PDF Scanner menggunakan deteksi tepi dan auto-crop dari native document scanner, sehingga beberapa halaman dapat diproses menjadi satu dokumen PDF tanpa watermark.
+A lightweight mobile application for scanning physical documents into high-quality PDF files. **Lightweight PDF Scanner** uses automatic edge detection and perspective auto-cropping powered by a native document scanner, allowing multiple pages to be combined into a single PDF document without watermarks.
 
-## Fitur
+## Features
 
-- Memindai satu atau beberapa halaman melalui kamera perangkat.
-- Deteksi tepi otomatis dan perspective auto-crop.
-- Pratinjau halaman sebelum ekspor.
-- Menambah, memindai ulang, menghapus, dan mengurutkan halaman.
-- Ekspor gambar hasil pindaian ke PDF berformat A4.
-- Penamaan file PDF dengan sanitasi karakter yang tidak valid.
-- Riwayat dokumen yang tersimpan secara lokal di perangkat.
-- Pencarian dokumen berdasarkan nama file.
-- Membagikan PDF melalui OS share sheet.
-- Menyimpan PDF ke penyimpanan eksternal dan menghapus dokumen.
+- Scan single or multiple pages using the device camera.
+- Automatic edge detection and perspective auto-cropping.
+- Preview scanned pages before exporting.
+- Add, rescan, delete, and reorder pages.
+- Export scanned images to A4-formatted PDF files.
+- Automatically sanitize invalid characters in PDF filenames.
+- Store document history locally on the device.
+- Search documents by filename.
+- Share PDF files using the operating system's native share sheet.
+- Save PDF files to external storage and delete documents.
 
-## Teknologi
+## Technology Stack
 
 - [Expo](https://expo.dev/) SDK 57
 - [React Native](https://reactnative.dev/) 0.86
 - [Expo Router](https://docs.expo.dev/router/introduction/)
-- TypeScript dan JavaScript
+- TypeScript and JavaScript
 - [`react-native-document-scanner-plugin`](https://github.com/WebsiteBeaver/react-native-document-scanner-plugin)
-- `expo-print`, `expo-file-system`, `expo-sharing`, dan `expo-media-library`
-- AsyncStorage untuk metadata riwayat dokumen
+- `expo-print`, `expo-file-system`, `expo-sharing`, and `expo-media-library`
+- AsyncStorage for storing document history metadata
 
-## Prasyarat
+## Prerequisites
 
-- Node.js versi LTS
+- Node.js LTS
 - npm
-- Android Studio dan emulator Android untuk pengembangan Android, atau Xcode untuk iOS
-- Expo CLI melalui dependensi proyek
-- Perangkat fisik atau development build untuk menguji kamera
+- Android Studio and an Android emulator for Android development, or Xcode for iOS development
+- Expo CLI through the project's dependencies
+- A physical device or development build for testing camera-based scanning features
 
-> Modul native document scanner tidak dapat diuji sepenuhnya melalui browser. Untuk fitur pemindaian, gunakan perangkat fisik atau development build.
+> The native document scanner cannot be fully tested in a web browser. For scanning functionality, use a physical device or a development build.
 
-## Instalasi
+## Installation
 
-```bash
-git clone <url-repository>
+Clone the repository and install the project dependencies:
+
+```
+git clone <repository-url>
 cd lightweight-scanner
 npm install
 ```
 
-## Menjalankan Aplikasi
+## Running the Application
 
-Mulai development server:
+Start the development server:
 
-```bash
+```
 npm run start
 ```
 
-Perintah platform yang tersedia:
+Available platform commands:
 
-```bash
-npm run android  # Membuka project di Android
-npm run ios      # Membuka project di iOS
-npm run web      # Menjalankan target web untuk layar yang kompatibel
+```
+npm run android  # Run the project on Android
+npm run ios      # Run the project on iOS
+npm run web      # Run the web target for compatible screens
 ```
 
-Saat pertama kali digunakan, berikan izin kamera dan akses media ketika diminta oleh sistem operasi.
+On first use, grant camera and media access permissions when requested by the operating system.
 
-## Pemeriksaan Kode
+## Code Quality
 
-Jalankan lint sebelum membuat perubahan dikirimkan:
+Run the linter before submitting changes:
 
-```bash
+```
 npm run lint
 ```
 
-## Build dengan EAS
+## Building with EAS
 
-Profil build telah disediakan di [`eas.json`](eas.json):
+Build profiles are defined in `eas.json`:
 
-```bash
-# Development build Android berbentuk APK
+```
+# Android development build as an APK
 npx eas-cli build --profile development --platform android
 
-# Preview/release internal berbentuk APK
+# Internal preview/release build as an APK
 npx eas-cli build --profile preview --platform android
 
-# Production Android berbentuk Android App Bundle
+# Production Android build as an Android App Bundle
 npx eas-cli build --profile production --platform android
 ```
 
-Pastikan sudah login ke akun Expo dan project EAS telah dikonfigurasi sebelum menjalankan build. Detail resmi tersedia di [EAS Build](https://docs.expo.dev/build/introduction/).
+Make sure you are logged in to your Expo account and that the EAS project has been configured before running a build.
 
-## Struktur Proyek
+For more information, see the official [EAS Build documentation](https://docs.expo.dev/build/introduction/).
 
-```text
+## Project Structure
+
+```
 .
-├── App.js                    # State dan alur utama scanner
-├── app.json                  # Konfigurasi Expo dan permission native
-├── eas.json                  # Profil build EAS
+├── App.js                    # Main scanner state and application flow
+├── app.json                  # Expo configuration and native permissions
+├── eas.json                  # EAS build profiles
 ├── src/
-│   ├── app/                  # Route Expo Router
-│   ├── components/           # Komponen UI scanner dan riwayat
-│   ├── constants/            # Konstanta tema
-│   ├── hooks/                # Hook terkait tema dan color scheme
+│   ├── app/                  # Expo Router routes
+│   ├── components/           # Scanner and document history UI components
+│   ├── constants/            # Theme constants
+│   ├── hooks/                # Theme and color scheme hooks
 │   └── services/
-│       └── pdfService.js     # Scanner, konversi PDF, storage, dan sharing
-└── assets/                   # Icon, splash screen, dan aset aplikasi
+│       └── pdfService.js     # Scanning, PDF conversion, storage, and sharing
+└── assets/                   # Application icons, splash screen, and other assets
 ```
 
-## Penyimpanan Data
+## Data Storage
 
-File PDF disimpan di direktori dokumen internal aplikasi. Metadata riwayat disimpan menggunakan AsyncStorage dengan key `@lightweight_pdf_scanner_history`. Saat riwayat dimuat, entri yang file PDF-nya sudah tidak tersedia akan dibersihkan secara otomatis.
+PDF files are stored in the application's internal document directory. Document history metadata is stored using AsyncStorage under the following key:
 
-## Permission
+```
+@lightweight_pdf_scanner_history
+```
 
-Aplikasi meminta akses berikut sesuai platform:
+When the document history is loaded, entries whose corresponding PDF files are no longer available are automatically removed.
 
-- Kamera untuk memindai dokumen.
-- Galeri atau media untuk menyimpan dan mengelola hasil pindaian.
-- Penyimpanan eksternal pada Android untuk ekspor file.
+## Permissions
 
-Deskripsi permission dikonfigurasi di [`app.json`](app.json) dan ditampilkan oleh sistem operasi saat runtime.
+Depending on the platform, the application may request the following permissions:
 
-## Lisensi
+- **Camera** — Required for scanning physical documents.
+- **Gallery or media access** — Required to save and manage scanned documents.
+- **External storage** — Required on Android for exporting files.
 
-Lihat file [`LICENSE`](LICENSE) untuk informasi lisensi proyek.
+Permission descriptions are configured in `app.json` and presented by the operating system at runtime.
+
+## License
+
+See the `LICENSE` file for information about the project's license.
