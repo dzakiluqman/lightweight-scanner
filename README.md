@@ -1,56 +1,122 @@
-# Welcome to your Expo app 👋
+# Lightweight PDF Scanner
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplikasi mobile ringan untuk memindai dokumen fisik menjadi PDF berkualitas tinggi. Lightweight PDF Scanner menggunakan deteksi tepi dan auto-crop dari native document scanner, sehingga beberapa halaman dapat diproses menjadi satu dokumen PDF tanpa watermark.
 
-## Get started
+## Fitur
 
-1. Install dependencies
+- Memindai satu atau beberapa halaman melalui kamera perangkat.
+- Deteksi tepi otomatis dan perspective auto-crop.
+- Pratinjau halaman sebelum ekspor.
+- Menambah, memindai ulang, menghapus, dan mengurutkan halaman.
+- Ekspor gambar hasil pindaian ke PDF berformat A4.
+- Penamaan file PDF dengan sanitasi karakter yang tidak valid.
+- Riwayat dokumen yang tersimpan secara lokal di perangkat.
+- Pencarian dokumen berdasarkan nama file.
+- Membagikan PDF melalui OS share sheet.
+- Menyimpan PDF ke penyimpanan eksternal dan menghapus dokumen.
 
-   ```bash
-   npm install
-   ```
+## Teknologi
 
-2. Start the app
+- [Expo](https://expo.dev/) SDK 57
+- [React Native](https://reactnative.dev/) 0.86
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- TypeScript dan JavaScript
+- [`react-native-document-scanner-plugin`](https://github.com/WebsiteBeaver/react-native-document-scanner-plugin)
+- `expo-print`, `expo-file-system`, `expo-sharing`, dan `expo-media-library`
+- AsyncStorage untuk metadata riwayat dokumen
 
-   ```bash
-   npx expo start
-   ```
+## Prasyarat
 
-In the output, you'll find options to open the app in a
+- Node.js versi LTS
+- npm
+- Android Studio dan emulator Android untuk pengembangan Android, atau Xcode untuk iOS
+- Expo CLI melalui dependensi proyek
+- Perangkat fisik atau development build untuk menguji kamera
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+> Modul native document scanner tidak dapat diuji sepenuhnya melalui browser. Untuk fitur pemindaian, gunakan perangkat fisik atau development build.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Instalasi
 
 ```bash
-npm run reset-project
+git clone <url-repository>
+cd lightweight-scanner
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Menjalankan Aplikasi
 
-### Other setup steps
+Mulai development server:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npm run start
+```
 
-## Learn more
+Perintah platform yang tersedia:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm run android  # Membuka project di Android
+npm run ios      # Membuka project di iOS
+npm run web      # Menjalankan target web untuk layar yang kompatibel
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Saat pertama kali digunakan, berikan izin kamera dan akses media ketika diminta oleh sistem operasi.
 
-## Join the community
+## Pemeriksaan Kode
 
-Join our community of developers creating universal apps.
+Jalankan lint sebelum membuat perubahan dikirimkan:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npm run lint
+```
+
+## Build dengan EAS
+
+Profil build telah disediakan di [`eas.json`](eas.json):
+
+```bash
+# Development build Android berbentuk APK
+npx eas-cli build --profile development --platform android
+
+# Preview/release internal berbentuk APK
+npx eas-cli build --profile preview --platform android
+
+# Production Android berbentuk Android App Bundle
+npx eas-cli build --profile production --platform android
+```
+
+Pastikan sudah login ke akun Expo dan project EAS telah dikonfigurasi sebelum menjalankan build. Detail resmi tersedia di [EAS Build](https://docs.expo.dev/build/introduction/).
+
+## Struktur Proyek
+
+```text
+.
+├── App.js                    # State dan alur utama scanner
+├── app.json                  # Konfigurasi Expo dan permission native
+├── eas.json                  # Profil build EAS
+├── src/
+│   ├── app/                  # Route Expo Router
+│   ├── components/           # Komponen UI scanner dan riwayat
+│   ├── constants/            # Konstanta tema
+│   ├── hooks/                # Hook terkait tema dan color scheme
+│   └── services/
+│       └── pdfService.js     # Scanner, konversi PDF, storage, dan sharing
+└── assets/                   # Icon, splash screen, dan aset aplikasi
+```
+
+## Penyimpanan Data
+
+File PDF disimpan di direktori dokumen internal aplikasi. Metadata riwayat disimpan menggunakan AsyncStorage dengan key `@lightweight_pdf_scanner_history`. Saat riwayat dimuat, entri yang file PDF-nya sudah tidak tersedia akan dibersihkan secara otomatis.
+
+## Permission
+
+Aplikasi meminta akses berikut sesuai platform:
+
+- Kamera untuk memindai dokumen.
+- Galeri atau media untuk menyimpan dan mengelola hasil pindaian.
+- Penyimpanan eksternal pada Android untuk ekspor file.
+
+Deskripsi permission dikonfigurasi di [`app.json`](app.json) dan ditampilkan oleh sistem operasi saat runtime.
+
+## Lisensi
+
+Lihat file [`LICENSE`](LICENSE) untuk informasi lisensi proyek.
