@@ -15,15 +15,14 @@ import {
   Trash2,
   DownloadCloud,
   Search,
-  Calendar,
-  Layers,
-  HardDrive,
-  FileCheck,
-  FolderOpen,
-} from 'lucide-react-native';
+  X,
+  Camera,
+} from './Icons';
+import { useAppTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Typography } from '../constants/theme';
 
 /**
- * Format ISO date string into Indonesian friendly display
+ * Format ISO date string into Indonesian friendly display: "28 Sep 2026, 14:30"
  */
 function formatDate(isoString) {
   if (!isoString) return '';
@@ -32,7 +31,7 @@ function formatDate(isoString) {
     const day = String(d.getDate()).padStart(2, '0');
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
     ];
     const month = months[d.getMonth()];
     const year = d.getFullYear();
@@ -44,10 +43,6 @@ function formatDate(isoString) {
   }
 }
 
-/**
- * Modern History List of Saved PDFs
- * Renders cards with file size, page count, date, and direct Share/Save/Delete actions
- */
 export default function HistoryList({
   history = [],
   refreshing = false,
@@ -57,7 +52,9 @@ export default function HistoryList({
   onSaveToDownloads,
   onDeletePdf,
   onStartScan,
+  headerComponent,
 }) {
+  const { colors, isDark } = useAppTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter history based on search query
@@ -66,20 +63,15 @@ export default function HistoryList({
     const q = searchQuery.toLowerCase().trim();
     return history.filter(
       (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.fileName.toLowerCase().includes(q)
+        (item.name && item.name.toLowerCase().includes(q)) ||
+        (item.fileName && item.fileName.toLowerCase().includes(q))
     );
   }, [history, searchQuery]);
-
-  // Aggregate stats
-  const totalBytes = useMemo(() => {
-    return history.reduce((sum, item) => sum + (item.bytes || 0), 0);
-  }, [history]);
 
   const confirmDelete = (item) => {
     Alert.alert(
       'Hapus Dokumen?',
-      `Apakah Anda yakin ingin menghapus "${item.fileName}"? Tindakan ini tidak dapat dibatalkan.`,
+      `Hapus "${item.fileName}" secara permanen dari perangkat?`,
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -92,136 +84,245 @@ export default function HistoryList({
   };
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Title & Stats */}
-      <View style={styles.titleRow}>
-        <View>
-          <Text style={styles.sectionTitle}>Riwayat Dokumen</Text>
-          <Text style={styles.sectionSubtitle}>
-            {history.length > 0
-              ? `${history.length} dokumen PDF tersimpan`
-              : 'Belum ada dokumen yang dipindai'}
-          </Text>
-        </View>
+    <View style={styles.listHeaderWrapper}>
+      {headerComponent}
 
-        {history.length > 0 && (
-          <View style={styles.badgeStorage}>
-            <HardDrive color="#14B8A6" size={13} />
-            <Text style={styles.badgeStorageText}>
-              {(totalBytes / (1024 * 1024)).toFixed(1)} MB
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Search Bar if items exist */}
+      {/* Search Input Bar if items exist */}
       {history.length > 0 && (
-        <View style={styles.searchBox}>
-          <Search color="#64748B" size={18} />
+        <View
+          style={[
+            styles.searchBar,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Search color={colors.textSecondary} size={16} />
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                color: colors.textPrimary,
+                fontFamily: Typography.fontFamily,
+              },
+            ]}
             placeholder="Cari nama dokumen..."
-            placeholderTextColor="#64748B"
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            clearButtonMode="while-editing"
+            returnKeyType="search"
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.searchClearBtn}
+            >
+              <X color={colors.textMuted} size={16} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
-    </View>
-  );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconCircle}>
-        <FolderOpen color="#64748B" size={40} />
+      {/* Section Subheader */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+          Dokumen Tersimpan
+        </Text>
+        <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+          {filteredHistory.length} berkas
+        </Text>
       </View>
-      <Text style={styles.emptyTitle}>
-        {searchQuery ? 'Dokumen Tidak Ditemukan' : 'Belum Ada Pindaian'}
-      </Text>
-      <Text style={styles.emptySubtitle}>
-        {searchQuery
-          ? `Tidak ada dokumen yang cocok dengan kata kunci "${searchQuery}".`
-          : 'Dokumen yang telah dipindai dan diekspor ke PDF akan muncul di sini.'}
-      </Text>
-
-      {!searchQuery && onStartScan && (
-        <TouchableOpacity
-          style={styles.emptyActionButton}
-          onPress={onStartScan}
-          activeOpacity={0.8}
-        >
-          <FileCheck color="#FFFFFF" size={18} />
-          <Text style={styles.emptyActionText}>Pindai Sekarang</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
+
+  const renderEmptyState = () => {
+    if (searchQuery.trim()) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View
+            style={[
+              styles.emptyIconBox,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Search color={colors.textMuted} size={28} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+            Tidak Ditemukan
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            {`Tidak ada dokumen yang cocok dengan "${searchQuery}".`}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <View
+          style={[
+            styles.emptyIconBox,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <FileText color={colors.textMuted} size={32} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+          Belum Ada Dokumen
+        </Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+          Belum ada dokumen. Ketuk &apos;Mulai Pindai&apos; untuk membuat PDF pertama.
+        </Text>
+        {onStartScan && (
+          <TouchableOpacity
+            style={[
+              styles.emptyCtaButton,
+              {
+                backgroundColor: colors.primaryCta,
+              },
+            ]}
+            onPress={onStartScan}
+            activeOpacity={0.8}
+          >
+            <Camera color={colors.primaryCtaText} size={16} />
+            <Text
+              style={[
+                styles.emptyCtaButtonText,
+                { color: colors.primaryCtaText },
+              ]}
+            >
+              Mulai Pindai
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
+    <View
+      style={[
+        styles.rowItem,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+    >
       <TouchableOpacity
-        style={styles.cardContent}
+        style={styles.rowMain}
         onPress={() => onOpenPdf(item)}
         activeOpacity={0.7}
       >
-        {/* PDF Document Icon with Page Badge */}
-        <View style={styles.iconContainer}>
-          <FileText color="#0EA5E9" size={26} />
-          <View style={styles.pageMiniBadge}>
-            <Text style={styles.pageMiniBadgeText}>{item.pages || 1}p</Text>
-          </View>
+        {/* PDF Document Icon Badge */}
+        <View
+          style={[
+            styles.pdfBadge,
+            {
+              backgroundColor: isDark ? colors.surfaceSecondary : colors.accentSubtle,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <FileText color={colors.accent} size={18} />
+          {item.pages > 1 && (
+            <View
+              style={[
+                styles.pageCountTag,
+                {
+                  backgroundColor: colors.accent,
+                },
+              ]}
+            >
+              <Text style={styles.pageCountText}>{item.pages}p</Text>
+            </View>
+          )}
         </View>
 
-        {/* Info */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.fileName} numberOfLines={1} ellipsizeMode="middle">
+        {/* File Metadata */}
+        <View style={styles.rowInfo}>
+          <Text
+            style={[
+              styles.fileName,
+              {
+                color: colors.textPrimary,
+                fontFamily: Typography.fontFamily,
+              },
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="middle"
+          >
             {item.fileName}
           </Text>
 
           <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Calendar color="#64748B" size={12} />
-              <Text style={styles.metaText}>{formatDate(item.createdAt)}</Text>
-            </View>
-
-            <View style={styles.metaSeparator} />
-
-            <View style={styles.metaItem}>
-              <Layers color="#64748B" size={12} />
-              <Text style={styles.metaText}>{item.size || '0 B'}</Text>
-            </View>
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+              {formatDate(item.createdAt)}
+            </Text>
+            <Text style={[styles.metaDot, { color: colors.textMuted }]}>•</Text>
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+              {item.size || '0 B'}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
 
-      {/* Action Buttons */}
-      <View style={styles.actionRow}>
+      {/* Action Buttons: Download, Share, Delete */}
+      <View style={styles.actionGroup}>
         <TouchableOpacity
-          style={styles.actionButton}
+          style={[
+            styles.actionIconButton,
+            {
+              backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
+              borderColor: colors.border,
+            },
+          ]}
           onPress={() => onSaveToDownloads(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          activeOpacity={0.7}
           accessibilityLabel="Simpan ke Penyimpanan"
         >
-          <DownloadCloud color="#38BDF8" size={18} />
+          <DownloadCloud color={colors.textSecondary} size={16} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionButton}
+          style={[
+            styles.actionIconButton,
+            {
+              backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
+              borderColor: colors.border,
+            },
+          ]}
           onPress={() => onSharePdf(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          activeOpacity={0.7}
           accessibilityLabel="Bagikan PDF"
         >
-          <Share2 color="#14B8A6" size={18} />
+          <Share2 color={colors.accent} size={16} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
+          style={[
+            styles.actionIconButton,
+            {
+              backgroundColor: isDark ? colors.dangerBg : colors.dangerBg,
+              borderColor: isDark ? colors.dangerBorder : colors.dangerBorder,
+            },
+          ]}
           onPress={() => confirmDelete(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          activeOpacity={0.7}
           accessibilityLabel="Hapus PDF"
         >
-          <Trash2 color="#EF4444" size={18} />
+          <Trash2 color={colors.danger} size={16} />
         </TouchableOpacity>
       </View>
     </View>
@@ -234,15 +335,15 @@ export default function HistoryList({
       renderItem={renderItem}
       ListHeaderComponent={renderHeader}
       ListEmptyComponent={renderEmptyState}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={styles.listContainer}
       showsVerticalScrollIndicator={false}
       refreshControl={
         onRefresh ? (
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#14B8A6"
-            colors={['#14B8A6', '#0EA5E9']}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         ) : undefined
       }
@@ -251,208 +352,158 @@ export default function HistoryList({
 }
 
 const styles = StyleSheet.create({
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+  listContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xxl + 40,
   },
-  headerContainer: {
-    marginBottom: 16,
-    paddingTop: 8,
+  listHeaderWrapper: {
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xs,
   },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F8FAFC',
-    letterSpacing: 0.2,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  badgeStorage: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(20, 184, 166, 0.12)',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.25)',
-  },
-  badgeStorageText: {
-    color: '#14B8A6',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#334155',
-    gap: 10,
+    paddingHorizontal: Spacing.sm,
+    height: 40,
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
   },
   searchInput: {
     flex: 1,
-    color: '#F8FAFC',
-    fontSize: 14,
+    fontSize: 13,
     paddingVertical: 0,
   },
-  card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 12,
+  searchClearBtn: {
+    padding: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
-  cardContent: {
+  rowMain: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.xs,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+  pdfBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    marginRight: 12,
+    marginRight: Spacing.sm,
   },
-  pageMiniBadge: {
+  pageCountTag: {
     position: 'absolute',
-    bottom: -4,
-    right: -4,
-    backgroundColor: '#0EA5E9',
-    borderRadius: 6,
-    paddingHorizontal: 4,
+    bottom: -3,
+    right: -3,
+    borderRadius: 4,
+    paddingHorizontal: 3,
     paddingVertical: 1,
   },
-  pageMiniBadgeText: {
+  pageCountText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
   },
-  infoContainer: {
+  rowInfo: {
     flex: 1,
+    justifyContent: 'center',
   },
   fileName: {
-    fontSize: 15,
+    fontSize: 13.5,
     fontWeight: '600',
-    color: '#F8FAFC',
-    marginBottom: 4,
+    marginBottom: 2,
+    letterSpacing: -0.1,
   },
   metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   metaText: {
-    fontSize: 12,
-    color: '#94A3B8',
+    fontSize: 11,
   },
-  metaSeparator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#475569',
-    marginHorizontal: 8,
+  metaDot: {
+    fontSize: 11,
   },
-  actionRow: {
+  actionGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#0F172A',
+  actionIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#334155',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  deleteButton: {
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
   },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#1E293B',
+  emptyIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#334155',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#F8FAFC',
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#94A3B8',
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
+    maxWidth: 280,
   },
-  emptyActionButton: {
+  emptyCtaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#14B8A6',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    shadowColor: '#14B8A6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.sm,
   },
-  emptyActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+  emptyCtaButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

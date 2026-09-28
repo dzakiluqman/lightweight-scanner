@@ -12,12 +12,11 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { FileText, CheckCircle2, XCircle, FileOutput, ShieldAlert } from 'lucide-react-native';
+import { FileText, Check, X, ShieldAlert } from './Icons';
 import { generateDefaultFilename, sanitizeFilename } from '../services/pdfService';
+import { useAppTheme } from '../context/ThemeContext';
+import { Spacing, Radius, Typography } from '../constants/theme';
 
-/**
- * Inner modal content that mounts fresh whenever the modal becomes visible
- */
 function NamingModalContent({
   visible,
   pageCount,
@@ -25,18 +24,16 @@ function NamingModalContent({
   onClose,
   onConfirm,
 }) {
+  const { colors, isDark } = useAppTheme();
   const [fileName, setFileName] = useState(() => generateDefaultFilename());
   const [hasIllegalCharNotice, setHasIllegalCharNotice] = useState(false);
 
-  // Handle live input typing with auto-sanitization
   const handleInputChange = (text) => {
     const illegalCharsRegex = /[/\\:*?"<>|]/g;
     if (illegalCharsRegex.test(text)) {
       setHasIllegalCharNotice(true);
-      // Automatically strip illegal characters
       const clean = text.replace(illegalCharsRegex, '');
       setFileName(clean);
-      // Hide warning after 2.5s
       setTimeout(() => setHasIllegalCharNotice(false), 2500);
     } else {
       setFileName(text);
@@ -55,55 +52,104 @@ function NamingModalContent({
       transparent
       animationType="fade"
       onRequestClose={isLoading ? undefined : onClose}
+      statusBarTranslucent
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.overlay}>
+        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardContainer}
           >
-            <View style={styles.modalCard}>
-              {/* Decorative Glow Header */}
-              <View style={styles.headerIconContainer}>
-                <View style={styles.iconCircle}>
-                  <FileOutput color="#14B8A6" size={28} />
+            <View
+              style={[
+                styles.modalCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              {/* Header Title with Document Pill */}
+              <View style={styles.headerRow}>
+                <View
+                  style={[
+                    styles.iconBox,
+                    {
+                      backgroundColor: isDark ? colors.surfaceSecondary : colors.accentSubtle,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <FileText color={colors.accent} size={20} />
+                </View>
+                <View style={styles.headerTextCol}>
+                  <Text style={[styles.title, { color: colors.textPrimary }]}>
+                    Beri Nama Dokumen
+                  </Text>
+                  <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                    {pageCount} halaman siap dikompilasi
+                  </Text>
                 </View>
               </View>
 
-              {/* Title & Info */}
-              <Text style={styles.title}>Beri Nama Dokumen</Text>
-              <Text style={styles.subtitle}>
-                PDF siap diekspor dari{' '}
-                <Text style={styles.highlightText}>{pageCount} halaman</Text> hasil pindaian.
-              </Text>
-
               {/* Input Group */}
-              <View style={styles.inputWrapper}>
+              <View style={styles.inputSection}>
                 <View style={styles.inputLabelRow}>
-                  <Text style={styles.inputLabel}>Nama Berkas</Text>
-                  <Text style={styles.extensionLabel}>.pdf</Text>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                    Nama Berkas
+                  </Text>
+                  <View
+                    style={[
+                      styles.extensionPill,
+                      {
+                        backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.extensionText, { color: colors.accent }]}>
+                      .pdf
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.inputContainer}>
-                  <FileText color="#94A3B8" size={20} style={styles.inputIcon} />
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
                   <TextInput
-                    style={styles.textInput}
+                    style={[
+                      styles.textInput,
+                      {
+                        color: colors.textPrimary,
+                        fontFamily: Typography.fontFamily,
+                      },
+                    ]}
                     value={fileName}
                     onChangeText={handleInputChange}
-                    placeholder="Contoh: Dokumen_Penting"
-                    placeholderTextColor="#64748B"
+                    placeholder="Nama dokumen..."
+                    placeholderTextColor={colors.textMuted}
                     autoFocus
                     autoCapitalize="none"
                     autoCorrect={false}
                     selectTextOnFocus
                     editable={!isLoading}
+                    returnKeyType="done"
+                    onSubmitEditing={handleExport}
                   />
                   {fileName.length > 0 && !isLoading && (
                     <TouchableOpacity
                       onPress={() => setFileName('')}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.6}
+                      style={styles.clearBtn}
                     >
-                      <XCircle color="#64748B" size={18} />
+                      <X color={colors.textMuted} size={16} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -117,27 +163,41 @@ function NamingModalContent({
                     </Text>
                   </View>
                 ) : (
-                  <Text style={styles.helperText}>
-                    Tersimpan di penyimpanan lokal perangkat.
+                  <Text style={[styles.helperText, { color: colors.textMuted }]}>
+                    Format default: Scan_YYYYMMDD_HHMMSS
                   </Text>
                 )}
               </View>
 
-              {/* Action Buttons */}
+              {/* Action Buttons Pairing */}
               <View style={styles.buttonRow}>
+                {/* Ghost / Outline Button for Batal */}
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
+                  style={[
+                    styles.button,
+                    styles.cancelButton,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
+                    },
+                  ]}
                   onPress={onClose}
                   disabled={isLoading}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.cancelButtonText}>Batal</Text>
+                  <Text style={[styles.cancelButtonText, { color: colors.textPrimary }]}>
+                    Batal
+                  </Text>
                 </TouchableOpacity>
 
+                {/* High Contrast Solid Button for Simpan & Ekspor */}
                 <TouchableOpacity
                   style={[
                     styles.button,
                     styles.exportButton,
+                    {
+                      backgroundColor: colors.primaryCta,
+                    },
                     (!fileName.trim() || isLoading) && styles.disabledButton,
                   ]}
                   onPress={handleExport}
@@ -145,14 +205,31 @@ function NamingModalContent({
                   activeOpacity={0.8}
                 >
                   {isLoading ? (
-                    <View style={styles.loadingRow}>
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                      <Text style={styles.exportButtonText}>Memproses...</Text>
+                    <View style={styles.actionContent}>
+                      <ActivityIndicator
+                        color={colors.primaryCtaText}
+                        size="small"
+                      />
+                      <Text
+                        style={[
+                          styles.exportButtonText,
+                          { color: colors.primaryCtaText },
+                        ]}
+                      >
+                        Memproses...
+                      </Text>
                     </View>
                   ) : (
-                    <View style={styles.loadingRow}>
-                      <CheckCircle2 color="#FFFFFF" size={18} />
-                      <Text style={styles.exportButtonText}>Simpan & Ekspor</Text>
+                    <View style={styles.actionContent}>
+                      <Check color={colors.primaryCtaText} size={16} strokeWidth={2.5} />
+                      <Text
+                        style={[
+                          styles.exportButtonText,
+                          { color: colors.primaryCtaText },
+                        ]}
+                      >
+                        Simpan & Ekspor
+                      </Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -166,9 +243,9 @@ function NamingModalContent({
 }
 
 /**
- * Modern Glassmorphism / Slate Styled PDF Naming Modal
- * Provides preset Scan_YYYYMMDD_HHMMSS naming, live auto-sanitizing,
- * and sleek Teal/Slate action buttons.
+ * Handcrafted Custom File Naming Modal
+ * Dialog style with strict 8pt grid, 1px subtle border, system typography,
+ * high-contrast buttons, and live sanitization.
  */
 export default function NamingModal({
   visible,
@@ -193,10 +270,9 @@ export default function NamingModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.md,
   },
   keyboardContainer: {
     width: '100%',
@@ -204,98 +280,86 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    padding: 24,
+    maxWidth: 400,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: '#334155',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
   },
-  headerIconContainer: {
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(20, 184, 166, 0.12)',
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerTextCol: {
+    flex: 1,
+  },
   title: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#F8FAFC',
-    textAlign: 'center',
-    marginBottom: 6,
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
+    fontSize: 13,
+    marginTop: 2,
   },
-  highlightText: {
-    color: '#38BDF8',
-    fontWeight: '600',
-  },
-  inputWrapper: {
-    marginBottom: 24,
+  inputSection: {
+    marginBottom: Spacing.lg,
   },
   inputLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#CBD5E1',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  extensionLabel: {
-    fontSize: 13,
-    color: '#14B8A6',
+  extensionPill: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: Radius.xs,
+    borderWidth: 1,
+  },
+  extensionText: {
+    fontSize: 11,
     fontWeight: '700',
   },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#334155',
-    paddingHorizontal: 14,
-    height: 52,
-  },
-  inputIcon: {
-    marginRight: 10,
+    paddingHorizontal: Spacing.sm,
+    height: 44,
   },
   textInput: {
     flex: 1,
-    color: '#F8FAFC',
-    fontSize: 15,
+    fontSize: 14,
     paddingVertical: 0,
+  },
+  clearBtn: {
+    padding: 4,
   },
   helperText: {
     fontSize: 12,
-    color: '#64748B',
-    marginTop: 6,
-    paddingHorizontal: 2,
+    marginTop: Spacing.xs,
   },
   noticeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: Spacing.xs,
     gap: 6,
   },
   noticeText: {
@@ -305,45 +369,33 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.sm,
   },
   button: {
     flex: 1,
-    height: 48,
-    borderRadius: 14,
+    height: 44,
+    borderRadius: Radius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: 'rgba(51, 65, 85, 0.5)',
     borderWidth: 1,
-    borderColor: '#334155',
   },
   cancelButtonText: {
-    color: '#CBD5E1',
     fontSize: 14,
     fontWeight: '600',
   },
-  exportButton: {
-    backgroundColor: '#0EA5E9',
-    shadowColor: '#0EA5E9',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+  exportButton: {},
+  exportButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   disabledButton: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
-  exportButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  loadingRow: {
+  actionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
 });

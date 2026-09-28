@@ -1,21 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
   Image,
-  Dimensions,
   Alert,
   StatusBar,
   ScrollView,
   ToastAndroid,
   Platform,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
   Camera,
-  Layers,
   ArrowLeft,
   Trash2,
   RotateCcw,
@@ -25,15 +23,17 @@ import {
   FileOutput,
   Share2,
   DownloadCloud,
-  CheckCircle,
-  FolderOpen,
-  Sparkles,
-  Zap,
-} from 'lucide-react-native';
+  Check,
+  Sun,
+  Moon,
+  HardDrive,
+} from './src/components/Icons';
 
 import Logo from './src/components/Logo';
 import NamingModal from './src/components/NamingModal';
 import HistoryList from './src/components/HistoryList';
+import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
+import { Spacing, Radius } from './src/constants/theme';
 import {
   scanDocumentWithCamera,
   compileImagesToPdf,
@@ -41,11 +41,12 @@ import {
   deleteScanRecord,
   sharePdfFile,
   exportToExternalStorage,
+  formatBytes,
 } from './src/services/pdfService';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+function MainScreen() {
+  const { colors, isDark, toggleTheme } = useAppTheme();
 
-export default function App() {
   // App views: 'DASHBOARD' | 'PREVIEW'
   const [currentView, setCurrentView] = useState('DASHBOARD');
 
@@ -62,12 +63,7 @@ export default function App() {
   const [namingModalVisible, setNamingModalVisible] = useState(false);
   const [successExportData, setSuccessExportData] = useState(null);
 
-  // Load history on mount
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     setRefreshing(true);
     try {
       const records = await getScanHistory();
@@ -77,10 +73,38 @@ export default function App() {
     } finally {
       setRefreshing(false);
     }
+  }, []);
+
+  // Load history on mount
+  useEffect(() => {
+    let isMounted = true;
+    getScanHistory()
+      .then((records) => {
+        if (isMounted) {
+          setHistory(records);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load history on mount:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalBytes = useMemo(() => {
+    return history.reduce((sum, item) => sum + (item.bytes || 0), 0);
+  }, [history]);
+
+  const showToast = (message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    }
   };
 
   /**
-   * Trigger camera document scanner
+   * Trigger native camera document scanner
    */
   const handleStartScan = async (append = false) => {
     try {
@@ -90,12 +114,9 @@ export default function App() {
 
       if (!result.cancelled && result.images.length > 0) {
         if (append) {
-          // Append new pages to existing batch
           setScannedImages((prev) => [...prev, ...result.images]);
-          setSelectedPageIndex((prev) => prev); // keep or update
           showToast(`Berhasil menambah ${result.images.length} halaman.`);
         } else {
-          // Fresh scan
           setScannedImages(result.images);
           setSelectedPageIndex(0);
           setCurrentView('PREVIEW');
@@ -105,7 +126,7 @@ export default function App() {
       console.error('Scan failed:', error);
       Alert.alert(
         'Gagal Memindai',
-        'Tidak dapat membuka kamera pemindai. Pastikan izin kamera telah diberikan.',
+        'Tidak dapat mengakses kamera pemindai. Pastikan izin kamera telah diberikan di pengaturan sistem.',
         [{ text: 'OK' }]
       );
     }
@@ -132,7 +153,7 @@ export default function App() {
       }
     } catch (error) {
       console.error('Rescan failed:', error);
-      Alert.alert('Pindai Ulang Gagal', 'Gagal memindai ulang halaman.');
+      Alert.alert('Pindai Ulang Gagal', 'Gagal memperbarui halaman.');
     }
   };
 
@@ -142,12 +163,12 @@ export default function App() {
   const handleDeleteCurrentPage = () => {
     if (scannedImages.length <= 1) {
       Alert.alert(
-        'Hapus Halaman Terakhir?',
-        'Menghapus halaman ini akan membatalkan sesi pindaian saat ini.',
+        'Batalkan Sesi?',
+        'Menghapus satu-satunya halaman akan mengakhiri sesi pindaian ini.',
         [
-          { text: 'Batal', style: 'cancel' },
+          { text: 'Kembali', style: 'cancel' },
           {
-            text: 'Hapus & Keluar',
+            text: 'Batalkan',
             style: 'destructive',
             onPress: () => {
               setScannedImages([]);
@@ -204,7 +225,6 @@ export default function App() {
       const result = await compileImagesToPdf(scannedImages, finalFileName);
       setNamingModalVisible(false);
       setSuccessExportData(result);
-      // Reload history
       await loadHistory();
     } catch (error) {
       console.error('Export error:', error);
@@ -217,9 +237,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Post-export actions
-   */
   const handleFinishSuccess = () => {
     setSuccessExportData(null);
     setScannedImages([]);
@@ -249,528 +266,731 @@ export default function App() {
     try {
       const updated = await deleteScanRecord(item.id, item.uri);
       setHistory(updated);
-      showToast(`"${item.fileName}" telah dihapus.`);
-    } catch (error) {
+      showToast(`"${item.fileName}" dihapus.`);
+    } catch (_error) {
       Alert.alert('Gagal Menghapus', 'Tidak dapat menghapus dokumen.');
     }
   };
 
-  const showToast = (message) => {
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(message, ToastAndroid.SHORT);
-    }
-  };
+  // Header and Dashboard Elements rendered above the history list
+  const renderDashboardHero = () => (
+    <View style={styles.dashboardHeroSection}>
+      {/* Storage Utility Strip */}
+      <View
+        style={[
+          styles.storageStrip,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.storageLeft}>
+          <HardDrive color={colors.accent} size={15} />
+          <Text style={[styles.storageText, { color: colors.textSecondary }]}>
+            Penyimpanan Lokal
+          </Text>
+        </View>
+        <Text style={[styles.storageStats, { color: colors.textPrimary }]}>
+          {history.length} Dokumen • {formatBytes(totalBytes)}
+        </Text>
+      </View>
+
+      {/* Hero Action Section */}
+      <View
+        style={[
+          styles.heroCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.heroTextWrapper}>
+          <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
+            Pindai Dokumen Fisik
+          </Text>
+          <Text style={[styles.heroDescription, { color: colors.textSecondary }]}>
+            Kamera beresolusi tinggi dengan deteksi sudut otomatis dan konversi PDF instan.
+          </Text>
+        </View>
+
+        {/* Primary CTA Button */}
+        <TouchableOpacity
+          style={[
+            styles.heroScanButton,
+            {
+              backgroundColor: colors.primaryCta,
+            },
+          ]}
+          onPress={() => handleStartScan(false)}
+          activeOpacity={0.8}
+        >
+          <Camera color={colors.primaryCtaText} size={18} strokeWidth={2.25} />
+          <Text style={[styles.heroScanButtonText, { color: colors.primaryCtaText }]}>
+            Mulai Pindai
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        {/* ==================== DASHBOARD VIEW ==================== */}
-        {currentView === 'DASHBOARD' && (
-          <View style={styles.container}>
-            {/* Top Navigation Bar */}
-            <View style={styles.topNavbar}>
-              <View style={styles.navBrand}>
-                <Logo size={36} showGlow={false} />
-                <View style={styles.brandTextWrapper}>
-                  <Text style={styles.brandTitle}>Lightweight Scanner</Text>
-                  <View style={styles.badgeUltraLight}>
-                    <Zap color="#14B8A6" size={10} />
-                    <Text style={styles.badgeUltraLightText}>ULTRA LIGHTWEIGHT</Text>
-                  </View>
-                </View>
-              </View>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
+      <StatusBar
+        barStyle={colors.statusBarStyle}
+        backgroundColor={colors.statusBarBg}
+      />
 
-              <TouchableOpacity
-                style={styles.refreshIconBtn}
-                onPress={loadHistory}
-                activeOpacity={0.7}
+      {/* ==================== DASHBOARD VIEW ==================== */}
+      {currentView === 'DASHBOARD' && (
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          {/* Top Compact Header */}
+          <View
+            style={[
+              styles.topNavbar,
+              {
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.navBrand}>
+              <Logo size={28} />
+              <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>
+                Lightweight Scanner
+              </Text>
+              <View
+                style={[
+                  styles.docCounterPill,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
               >
-                <RotateCcw color="#94A3B8" size={18} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Hero Start Scan Banner Card */}
-            <View style={styles.heroCard}>
-              <View style={styles.heroBackgroundDecoration} />
-              <View style={styles.heroContent}>
-                <View style={styles.heroBadgeRow}>
-                  <View style={styles.techPill}>
-                    <Sparkles color="#38BDF8" size={12} />
-                    <Text style={styles.techPillText}>Deteksi Tepi Otomatis & Auto-Crop</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.heroTitle}>Pindai Dokumen Fisik Jadi PDF Berkualitas</Text>
-                <Text style={styles.heroDescription}>
-                  Cepat, tanpa watermark, dan langsung tersimpan ke perangkat Anda.
+                <Text style={[styles.docCounterText, { color: colors.textSecondary }]}>
+                  {history.length} PDF
                 </Text>
-
-                {/* Primary Scan Button */}
-                <TouchableOpacity
-                  style={styles.heroButton}
-                  onPress={() => handleStartScan(false)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.heroButtonContent}>
-                    <View style={styles.heroButtonIconBg}>
-                      <Camera color="#FFFFFF" size={22} />
-                    </View>
-                    <Text style={styles.heroButtonText}>Mulai Pindai Dokumen</Text>
-                  </View>
-                </TouchableOpacity>
               </View>
             </View>
 
-            {/* Document History Section */}
-            <View style={styles.historyContainer}>
-              <HistoryList
-                history={history}
-                refreshing={refreshing}
-                onRefresh={loadHistory}
-                onOpenPdf={handleSharePdf}
-                onSharePdf={handleSharePdf}
-                onSaveToDownloads={handleSaveToDownloads}
-                onDeletePdf={handleDeleteHistoryItem}
-                onStartScan={() => handleStartScan(false)}
-              />
+            {/* Header Right Actions */}
+            <View style={styles.headerRightActions}>
+              <TouchableOpacity
+                style={[
+                  styles.iconNavButton,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={toggleTheme}
+                activeOpacity={0.7}
+                accessibilityLabel="Ganti Tema"
+              >
+                {isDark ? (
+                  <Sun color={colors.accent} size={16} strokeWidth={2} />
+                ) : (
+                  <Moon color={colors.textPrimary} size={16} strokeWidth={2} />
+                )}
+              </TouchableOpacity>
             </View>
           </View>
-        )}
 
-        {/* ==================== INTERACTIVE PREVIEW SCREEN ==================== */}
-        {currentView === 'PREVIEW' && (
-          <View style={styles.container}>
-            {/* Preview Top Navbar */}
-            <View style={styles.previewTopNavbar}>
-              <TouchableOpacity
-                style={styles.navBackBtn}
-                onPress={() => {
-                  Alert.alert(
-                    'Tutup Pratinjau?',
-                    'Halaman yang telah dipindai akan dibatalkan jika belum diekspor.',
-                    [
-                      { text: 'Lanjut Mengedit', style: 'cancel' },
-                      {
-                        text: 'Tutup',
-                        style: 'destructive',
-                        onPress: () => {
-                          setScannedImages([]);
-                          setCurrentView('DASHBOARD');
-                        },
+          {/* Document History & Dashboard Content */}
+          <HistoryList
+            history={history}
+            refreshing={refreshing}
+            onRefresh={loadHistory}
+            onOpenPdf={handleSharePdf}
+            onSharePdf={handleSharePdf}
+            onSaveToDownloads={handleSaveToDownloads}
+            onDeletePdf={handleDeleteHistoryItem}
+            onStartScan={() => handleStartScan(false)}
+            headerComponent={renderDashboardHero()}
+          />
+        </View>
+      )}
+
+      {/* ==================== INTERACTIVE PREVIEW SCREEN ==================== */}
+      {currentView === 'PREVIEW' && (
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          {/* Preview Top Navbar */}
+          <View
+            style={[
+              styles.previewNavbar,
+              {
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[
+                styles.navBackBtn,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => {
+                Alert.alert(
+                  'Tutup Pratinjau?',
+                  'Pindaian yang belum diekspor akan dibatalkan.',
+                  [
+                    { text: 'Lanjut Mengedit', style: 'cancel' },
+                    {
+                      text: 'Tutup',
+                      style: 'destructive',
+                      onPress: () => {
+                        setScannedImages([]);
+                        setCurrentView('DASHBOARD');
                       },
-                    ]
-                  );
-                }}
-                activeOpacity={0.7}
-              >
-                <ArrowLeft color="#F8FAFC" size={20} />
-              </TouchableOpacity>
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft color={colors.textPrimary} size={18} />
+            </TouchableOpacity>
 
-              <View style={styles.previewNavCenter}>
-                <Text style={styles.previewNavTitle}>Pratinjau Pindaian</Text>
-                <Text style={styles.previewNavSubtitle}>
-                  Halaman {selectedPageIndex + 1} dari {scannedImages.length}
-                </Text>
+            <View style={styles.previewNavCenter}>
+              <Text style={[styles.previewNavTitle, { color: colors.textPrimary }]}>
+                Pratinjau Pindaian
+              </Text>
+              <Text style={[styles.previewNavSubtitle, { color: colors.textSecondary }]}>
+                Halaman {selectedPageIndex + 1} dari {scannedImages.length}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.addPageNavBtn,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => handleStartScan(true)}
+              activeOpacity={0.7}
+            >
+              <Plus color={colors.accent} size={16} strokeWidth={2.5} />
+              <Text style={[styles.addPageNavText, { color: colors.textPrimary }]}>
+                Tambah
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Center Page Preview - Edge-to-Edge Clean Presentation */}
+          <View style={styles.mainPreviewArea}>
+            {scannedImages[selectedPageIndex] ? (
+              <View
+                style={[
+                  styles.previewImageCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Image
+                  source={{ uri: scannedImages[selectedPageIndex] }}
+                  style={styles.previewImage}
+                  resizeMode="contain"
+                />
+
+                {/* Explicit Page Index Pill */}
+                <View
+                  style={[
+                    styles.previewPageTag,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.previewPageTagText, { color: colors.textPrimary }]}>
+                    Hal {selectedPageIndex + 1} dari {scannedImages.length}
+                  </Text>
+                </View>
               </View>
+            ) : null}
+          </View>
+
+          {/* Contextual Action Bar: Quick icon buttons for Reorder, Rescan, Delete */}
+          <View
+            style={[
+              styles.contextualActionBar,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[
+                styles.contextActionBtn,
+                selectedPageIndex === 0 && styles.disabledContextBtn,
+              ]}
+              onPress={() => handleMovePage(-1)}
+              disabled={selectedPageIndex === 0}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft
+                color={selectedPageIndex === 0 ? colors.textMuted : colors.textPrimary}
+                size={16}
+              />
+              <Text
+                style={[
+                  styles.contextActionText,
+                  {
+                    color: selectedPageIndex === 0 ? colors.textMuted : colors.textPrimary,
+                  },
+                ]}
+              >
+                Kiri
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.contextDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.contextActionBtn}
+              onPress={handleRescanCurrentPage}
+              activeOpacity={0.7}
+            >
+              <RotateCcw color={colors.accent} size={16} />
+              <Text style={[styles.contextActionText, { color: colors.textPrimary }]}>
+                Pindai Ulang
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.contextDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.contextActionBtn}
+              onPress={() => handleStartScan(true)}
+              activeOpacity={0.7}
+            >
+              <Plus color={colors.accent} size={16} />
+              <Text style={[styles.contextActionText, { color: colors.textPrimary }]}>
+                Tambah Hal
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.contextDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.contextActionBtn}
+              onPress={handleDeleteCurrentPage}
+              activeOpacity={0.7}
+            >
+              <Trash2 color={colors.danger} size={16} />
+              <Text style={[styles.contextActionText, { color: colors.danger }]}>
+                Hapus
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.contextDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={[
+                styles.contextActionBtn,
+                selectedPageIndex === scannedImages.length - 1 && styles.disabledContextBtn,
+              ]}
+              onPress={() => handleMovePage(1)}
+              disabled={selectedPageIndex === scannedImages.length - 1}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.contextActionText,
+                  {
+                    color:
+                      selectedPageIndex === scannedImages.length - 1
+                        ? colors.textMuted
+                        : colors.textPrimary,
+                  },
+                ]}
+              >
+                Kanan
+              </Text>
+              <ChevronRight
+                color={
+                  selectedPageIndex === scannedImages.length - 1
+                    ? colors.textMuted
+                    : colors.textPrimary
+                }
+                size={16}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Clean Horizontal Thumbnail Carousel */}
+          <View
+            style={[
+              styles.thumbnailCarouselContainer,
+              {
+                backgroundColor: colors.background,
+                borderTopColor: colors.border,
+              },
+            ]}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.thumbnailScrollContent}
+            >
+              {scannedImages.map((uri, index) => {
+                const isSelected = index === selectedPageIndex;
+                return (
+                  <TouchableOpacity
+                    key={`${uri}_${index}`}
+                    style={[
+                      styles.thumbnailCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: isSelected ? colors.accent : colors.border,
+                        borderWidth: isSelected ? 2 : 1,
+                      },
+                    ]}
+                    onPress={() => setSelectedPageIndex(index)}
+                    activeOpacity={0.8}
+                  >
+                    <Image source={{ uri }} style={styles.thumbnailImage} />
+                    <View
+                      style={[
+                        styles.thumbnailPill,
+                        {
+                          backgroundColor: isSelected ? colors.accent : colors.surface,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.thumbnailPillText,
+                          {
+                            color: isSelected ? '#FFFFFF' : colors.textPrimary,
+                          },
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
 
               <TouchableOpacity
-                style={styles.addPageNavBtn}
+                style={[
+                  styles.addThumbnailCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={() => handleStartScan(true)}
                 activeOpacity={0.7}
               >
-                <Plus color="#14B8A6" size={18} />
-                <Text style={styles.addPageNavText}>Tambah</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Main Center Image Preview */}
-            <View style={styles.mainPreviewArea}>
-              {scannedImages[selectedPageIndex] ? (
-                <View style={styles.previewImageCard}>
-                  <Image
-                    source={{ uri: scannedImages[selectedPageIndex] }}
-                    style={styles.previewImage}
-                    resizeMode="contain"
-                  />
-                  {/* Floating Page Index Tag */}
-                  <View style={styles.previewPageTag}>
-                    <Layers color="#38BDF8" size={12} />
-                    <Text style={styles.previewPageTagText}>
-                      Hal {selectedPageIndex + 1} / {scannedImages.length}
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Editing Page Controls Toolbar */}
-            <View style={styles.pageToolbar}>
-              <TouchableOpacity
-                style={[
-                  styles.toolbarToolBtn,
-                  selectedPageIndex === 0 && styles.disabledToolBtn,
-                ]}
-                onPress={() => handleMovePage(-1)}
-                disabled={selectedPageIndex === 0}
-                activeOpacity={0.7}
-              >
-                <ChevronLeft
-                  color={selectedPageIndex === 0 ? '#475569' : '#CBD5E1'}
-                  size={18}
-                />
-                <Text
-                  style={[
-                    styles.toolbarToolText,
-                    selectedPageIndex === 0 && styles.disabledToolText,
-                  ]}
-                >
-                  Geser Kiri
+                <Plus color={colors.accent} size={18} strokeWidth={2} />
+                <Text style={[styles.addThumbnailText, { color: colors.textSecondary }]}>
+                  Tambah
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.toolbarToolBtn}
-                onPress={handleRescanCurrentPage}
-                activeOpacity={0.7}
-              >
-                <RotateCcw color="#38BDF8" size={18} />
-                <Text style={styles.toolbarToolText}>Pindai Ulang</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.toolbarToolBtn, styles.deleteToolBtn]}
-                onPress={handleDeleteCurrentPage}
-                activeOpacity={0.7}
-              >
-                <Trash2 color="#EF4444" size={18} />
-                <Text style={[styles.toolbarToolText, { color: '#EF4444' }]}>Hapus</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.toolbarToolBtn,
-                  selectedPageIndex === scannedImages.length - 1 && styles.disabledToolBtn,
-                ]}
-                onPress={() => handleMovePage(1)}
-                disabled={selectedPageIndex === scannedImages.length - 1}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.toolbarToolText,
-                    selectedPageIndex === scannedImages.length - 1 && styles.disabledToolText,
-                  ]}
-                >
-                  Geser Kanan
-                </Text>
-                <ChevronRight
-                  color={
-                    selectedPageIndex === scannedImages.length - 1 ? '#475569' : '#CBD5E1'
-                  }
-                  size={18}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Thumbnail Strip / Carousel */}
-            <View style={styles.thumbnailStripWrapper}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.thumbnailScrollContent}
-              >
-                {scannedImages.map((uri, index) => {
-                  const isSelected = index === selectedPageIndex;
-                  return (
-                    <TouchableOpacity
-                      key={`${uri}_${index}`}
-                      style={[
-                        styles.thumbnailCard,
-                        isSelected && styles.activeThumbnailCard,
-                      ]}
-                      onPress={() => setSelectedPageIndex(index)}
-                      activeOpacity={0.8}
-                    >
-                      <Image source={{ uri }} style={styles.thumbnailImage} />
-                      <View
-                        style={[
-                          styles.thumbnailIndexBadge,
-                          isSelected && styles.activeThumbnailIndexBadge,
-                        ]}
-                      >
-                        <Text style={styles.thumbnailIndexText}>{index + 1}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-
-                {/* Add Page Shortcut inside Thumbnail List */}
-                <TouchableOpacity
-                  style={styles.addThumbnailButton}
-                  onPress={() => handleStartScan(true)}
-                  activeOpacity={0.7}
-                >
-                  <Plus color="#14B8A6" size={20} />
-                  <Text style={styles.addThumbnailText}>Tambah</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-
-            {/* Floating Action / Bottom Export Button */}
-            <View style={styles.bottomExportBar}>
-              <TouchableOpacity
-                style={styles.exportPdfButton}
-                onPress={handlePromptExport}
-                activeOpacity={0.85}
-              >
-                <View style={styles.exportBtnIconContainer}>
-                  <FileOutput color="#FFFFFF" size={20} />
-                </View>
-                <Text style={styles.exportPdfButtonText}>
-                  Ekspor ke PDF ({scannedImages.length} Halaman)
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
-        )}
 
-        {/* ==================== NAMING MODAL ==================== */}
-        <NamingModal
-          visible={namingModalVisible}
-          pageCount={scannedImages.length}
-          isLoading={isExporting}
-          onClose={() => setNamingModalVisible(false)}
-          onConfirm={handleExecuteExport}
-        />
-
-        {/* ==================== SUCCESS BANNER MODAL ==================== */}
-        {successExportData && (
-          <View style={styles.successOverlay}>
-            <View style={styles.successCard}>
-              <View style={styles.successIconCircle}>
-                <CheckCircle color="#14B8A6" size={40} />
-              </View>
-
-              <Text style={styles.successTitle}>PDF Berhasil Dibuat!</Text>
-              <Text style={styles.successFilename} numberOfLines={1}>
-                {successExportData.fileName}
+          {/* High-Contrast Bottom Export Bar */}
+          <View
+            style={[
+              styles.bottomExportBar,
+              {
+                backgroundColor: colors.surface,
+                borderTopColor: colors.border,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[
+                styles.exportButton,
+                {
+                  backgroundColor: colors.primaryCta,
+                },
+              ]}
+              onPress={handlePromptExport}
+              activeOpacity={0.8}
+            >
+              <FileOutput color={colors.primaryCtaText} size={17} strokeWidth={2.25} />
+              <Text
+                style={[
+                  styles.exportButtonText,
+                  { color: colors.primaryCtaText },
+                ]}
+              >
+                Ekspor ke PDF ({scannedImages.length} Halaman)
               </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
-              <View style={styles.successStatsRow}>
-                <View style={styles.successStatPill}>
-                  <Text style={styles.successStatLabel}>Ukuran</Text>
-                  <Text style={styles.successStatValue}>{successExportData.size}</Text>
-                </View>
-                <View style={styles.successStatPill}>
-                  <Text style={styles.successStatLabel}>Halaman</Text>
-                  <Text style={styles.successStatValue}>{successExportData.pages} hal</Text>
-                </View>
-              </View>
+      {/* ==================== CUSTOM NAMING MODAL ==================== */}
+      <NamingModal
+        visible={namingModalVisible}
+        pageCount={scannedImages.length}
+        isLoading={isExporting}
+        onClose={() => setNamingModalVisible(false)}
+        onConfirm={handleExecuteExport}
+      />
 
-              {/* Action Buttons */}
-              <View style={styles.successActions}>
-                <TouchableOpacity
-                  style={styles.successPrimaryBtn}
-                  onPress={() => handleSharePdf(successExportData)}
-                  activeOpacity={0.8}
+      {/* ==================== SUCCESS STATE MODAL ==================== */}
+      {successExportData && (
+        <View style={[styles.successOverlay, { backgroundColor: colors.overlay }]}>
+          <View
+            style={[
+              styles.successCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.successIconCircle,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : colors.successBg,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Check color={colors.success} size={28} strokeWidth={3} />
+            </View>
+
+            <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
+              PDF Berhasil Dibuat
+            </Text>
+            <Text
+              style={[styles.successFilename, { color: colors.textSecondary }]}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+            >
+              {successExportData.fileName}
+            </Text>
+
+            {/* Document Stats Strip */}
+            <View
+              style={[
+                styles.successStatsRow,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.successStatText, { color: colors.textPrimary }]}>
+                {successExportData.pages} Halaman • {successExportData.size}
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.successActions}>
+              <TouchableOpacity
+                style={[
+                  styles.successActionBtn,
+                  {
+                    backgroundColor: colors.primaryCta,
+                  },
+                ]}
+                onPress={() => handleSharePdf(successExportData)}
+                activeOpacity={0.8}
+              >
+                <Share2 color={colors.primaryCtaText} size={16} />
+                <Text
+                  style={[
+                    styles.successActionBtnText,
+                    { color: colors.primaryCtaText },
+                  ]}
                 >
-                  <Share2 color="#FFFFFF" size={18} />
-                  <Text style={styles.successPrimaryBtnText}>Bagikan PDF</Text>
-                </TouchableOpacity>
+                  Bagikan PDF
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.successSecondaryBtn}
-                  onPress={() => handleSaveToDownloads(successExportData)}
-                  activeOpacity={0.8}
+              <TouchableOpacity
+                style={[
+                  styles.successSecondaryBtn,
+                  {
+                    backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => handleSaveToDownloads(successExportData)}
+                activeOpacity={0.8}
+              >
+                <DownloadCloud color={colors.textPrimary} size={16} />
+                <Text
+                  style={[
+                    styles.successSecondaryBtnText,
+                    { color: colors.textPrimary },
+                  ]}
                 >
-                  <DownloadCloud color="#38BDF8" size={18} />
-                  <Text style={styles.successSecondaryBtnText}>Simpan ke Downloads</Text>
-                </TouchableOpacity>
+                  Simpan ke Downloads
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.successDoneBtn}
-                  onPress={handleFinishSuccess}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.successDoneBtnText}>Kembali ke Beranda</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.successDoneBtn}
+                onPress={handleFinishSuccess}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.successDoneText, { color: colors.textSecondary }]}>
+                  Selesai
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-        )}
-      </SafeAreaView>
-    </SafeAreaProvider>
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <MainScreen />
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
   },
-  /* Top Navbar */
+  /* Top Compact Header */
   topNavbar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
   },
   navBrand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  brandTextWrapper: {
-    justifyContent: 'center',
+    gap: Spacing.xs + 2,
   },
   brandTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#F8FAFC',
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
-  badgeUltraLight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  badgeUltraLightText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#14B8A6',
-    letterSpacing: 0.5,
-  },
-  refreshIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#1E293B',
+  docCounterPill: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: '#334155',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  /* Hero Card */
-  heroCard: {
-    margin: 16,
-    backgroundColor: '#1E293B',
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.3)',
-    shadowColor: '#14B8A6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    elevation: 4,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  heroBackgroundDecoration: {
-    position: 'absolute',
-    right: -30,
-    top: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(14, 165, 233, 0.08)',
-  },
-  heroContent: {
-    zIndex: 1,
-  },
-  heroBadgeRow: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  techPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
-  },
-  techPillText: {
+  docCounterText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#38BDF8',
+    fontWeight: '600',
   },
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#F8FAFC',
-    lineHeight: 26,
-    marginBottom: 6,
-  },
-  heroDescription: {
-    fontSize: 13,
-    color: '#94A3B8',
-    lineHeight: 18,
-    marginBottom: 18,
-  },
-  heroButton: {
-    backgroundColor: '#0EA5E9',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    shadowColor: '#0EA5E9',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  heroButtonContent: {
+  headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    gap: Spacing.xs,
   },
-  heroButtonIconBg: {
+  iconNavButton: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  heroButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
+  /* Dashboard Hero & Storage Strip */
+  dashboardHeroSection: {
+    paddingTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
-  historyContainer: {
-    flex: 1,
-  },
-  /* Preview Screen Styles */
-  previewTopNavbar: {
+  storageStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  storageLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  storageText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  storageStats: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  heroCard: {
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    gap: Spacing.md,
+  },
+  heroTextWrapper: {
+    gap: 4,
+  },
+  heroTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  heroDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  heroScanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: Radius.sm,
+    gap: Spacing.xs,
+  },
+  heroScanButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  /* Preview Top Navbar */
+  previewNavbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
   },
   navBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#1E293B',
+    width: 36,
+    height: 36,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#334155',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -778,328 +998,240 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewNavTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#F8FAFC',
   },
   previewNavSubtitle: {
     fontSize: 12,
-    color: '#14B8A6',
-    fontWeight: '600',
-    marginTop: 2,
+    marginTop: 1,
   },
   addPageNavBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(20, 184, 166, 0.12)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.sm,
+    height: 36,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.3)',
+    gap: 4,
   },
   addPageNavText: {
-    color: '#14B8A6',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
   },
+  /* Main Preview Area */
   mainPreviewArea: {
     flex: 1,
-    padding: 16,
+    padding: Spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   previewImageCard: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#334155',
-    padding: 10,
+    overflow: 'hidden',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
   },
   previewImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
+    width: '96%',
+    height: '96%',
   },
   previewPageTag: {
     position: 'absolute',
-    top: 18,
-    right: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    bottom: Spacing.sm,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
   },
   previewPageTagText: {
-    color: '#38BDF8',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  pageToolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#0F172A',
-    borderTopWidth: 1,
-    borderTopColor: '#1E293B',
-  },
-  toolbarToolBtn: {
+  /* Contextual Action Bar */
+  contextualActionBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#1E293B',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    justifyContent: 'space-around',
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#334155',
   },
-  disabledToolBtn: {
+  contextActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  disabledContextBtn: {
     opacity: 0.4,
   },
-  deleteToolBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  toolbarToolText: {
+  contextActionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#CBD5E1',
   },
-  disabledToolText: {
-    color: '#64748B',
+  contextDivider: {
+    width: 1,
+    height: 18,
   },
-  thumbnailStripWrapper: {
-    height: 90,
-    backgroundColor: '#0B1120',
+  /* Thumbnail Carousel */
+  thumbnailCarouselContainer: {
+    paddingVertical: Spacing.xs + 2,
     borderTopWidth: 1,
-    borderTopColor: '#1E293B',
   },
   thumbnailScrollContent: {
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    gap: 12,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.xs,
   },
   thumbnailCard: {
     width: 54,
-    height: 70,
-    borderRadius: 10,
-    backgroundColor: '#1E293B',
-    borderWidth: 2,
-    borderColor: '#334155',
+    height: 72,
+    borderRadius: Radius.sm,
     overflow: 'hidden',
     position: 'relative',
-  },
-  activeThumbnailCard: {
-    borderColor: '#14B8A6',
-    shadowColor: '#14B8A6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   thumbnailImage: {
     width: '100%',
     height: '100%',
   },
-  thumbnailIndexBadge: {
+  thumbnailPill: {
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderWidth: 0.5,
   },
-  activeThumbnailIndexBadge: {
-    backgroundColor: '#14B8A6',
-  },
-  thumbnailIndexText: {
-    color: '#FFFFFF',
+  thumbnailPillText: {
     fontSize: 9,
     fontWeight: '800',
   },
-  addThumbnailButton: {
+  addThumbnailCard: {
     width: 54,
-    height: 70,
-    borderRadius: 10,
-    backgroundColor: 'rgba(20, 184, 166, 0.08)',
-    borderWidth: 1.5,
+    height: 72,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#14B8A6',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   addThumbnailText: {
     fontSize: 10,
-    color: '#14B8A6',
-    fontWeight: '700',
+    fontWeight: '600',
   },
+  /* Bottom Export Bar */
   bottomExportBar: {
-    padding: 16,
-    backgroundColor: '#0F172A',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#1E293B',
   },
-  exportPdfButton: {
-    backgroundColor: '#14B8A6',
-    borderRadius: 16,
-    height: 52,
+  exportButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    shadowColor: '#14B8A6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 5,
+    height: 46,
+    borderRadius: Radius.sm,
+    gap: Spacing.xs,
   },
-  exportBtnIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  exportButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
-  exportPdfButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  /* Success Overlay */
+  /* Success Overlay & Card */
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    zIndex: 99,
+    padding: Spacing.md,
   },
   successCard: {
     width: '100%',
-    maxWidth: 380,
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    padding: 24,
+    maxWidth: 360,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.4)',
     alignItems: 'center',
-    shadowColor: '#14B8A6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
   },
   successIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(20, 184, 166, 0.15)',
-    borderWidth: 2,
-    borderColor: '#14B8A6',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.sm,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#F8FAFC',
-    marginBottom: 4,
-  },
-  successFilename: {
-    fontSize: 14,
-    color: '#38BDF8',
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  successStatsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-    width: '100%',
-  },
-  successStatPill: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    padding: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  successStatLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
     marginBottom: 2,
   },
-  successStatValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#F8FAFC',
+  successFilename: {
+    fontSize: 13,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  successStatsRow: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  successStatText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   successActions: {
     width: '100%',
-    gap: 10,
+    gap: Spacing.xs,
   },
-  successPrimaryBtn: {
+  successActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#0EA5E9',
-    borderRadius: 14,
-    height: 48,
+    height: 44,
+    borderRadius: Radius.sm,
+    gap: Spacing.xs,
   },
-  successPrimaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+  successActionBtnText: {
+    fontSize: 13.5,
+    fontWeight: '600',
   },
   successSecondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
-    height: 48,
+    height: 44,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#334155',
+    gap: Spacing.xs,
   },
   successSecondaryBtnText: {
-    color: '#38BDF8',
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   successDoneBtn: {
-    alignItems: 'center',
+    height: 38,
     justifyContent: 'center',
-    height: 40,
-    marginTop: 4,
+    alignItems: 'center',
+    marginTop: 2,
   },
-  successDoneBtnText: {
-    color: '#94A3B8',
+  successDoneText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

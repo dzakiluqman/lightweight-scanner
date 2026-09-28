@@ -41,15 +41,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0F172A",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 80
-        }
-      ],
       "react-native-document-scanner-plugin",
       "expo-sharing",
       [
@@ -73,12 +64,7 @@
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "c4758bd7-80f0-40de-8f70-a3f0c16800da"
       }
