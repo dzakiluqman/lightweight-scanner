@@ -4,20 +4,22 @@ import Svg, {
   Path,
   Line,
   G,
+  Defs,
+  LinearGradient,
+  Stop,
 } from 'react-native-svg';
 import { useAppTheme } from '../context/ThemeContext';
 
 /**
  * Handcrafted Precision Vector Logo
- * Features a minimalist document silhouette with folded corner and clean scanner aperture geometry.
- * Completely free of blurred AI gradient circles or artificial glows.
+ * Minimalist document silhouette with Electric Cyan to Royal Indigo laser aperture geometry.
+ * Free of artificial AI blur slop.
  */
 export default function Logo({ size = 32, style }) {
   const { colors, isDark } = useAppTheme();
 
-  const accentColor = colors.accent;
-  const sheetFill = isDark ? colors.surface : colors.surfaceSecondary;
-  const cornerFill = isDark ? colors.border : '#CBD5E1';
+  const sheetFill = isDark ? 'rgba(30, 41, 59, 0.90)' : '#FFFFFF';
+  const cornerFill = isDark ? 'rgba(51, 65, 85, 0.90)' : '#E2E8F0';
 
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
@@ -27,6 +29,17 @@ export default function Logo({ size = 32, style }) {
         viewBox="0 0 40 40"
         fill="none"
       >
+        <Defs>
+          <LinearGradient id="logoLaserGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <Stop offset="0%" stopColor="#06B6D4" />
+            <Stop offset="100%" stopColor="#6366F1" />
+          </LinearGradient>
+          <LinearGradient id="logoBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#06B6D4" stopOpacity="0.8" />
+            <Stop offset="100%" stopColor="#6366F1" stopOpacity="0.8" />
+          </LinearGradient>
+        </Defs>
+
         {/* Document Body with Folded Top-Right Corner */}
         <Path
           d="M 9 6 
@@ -60,45 +73,45 @@ export default function Logo({ size = 32, style }) {
         <Line x1="14" y1="18" x2="26" y2="18" stroke={colors.textMuted} strokeWidth="1.5" strokeLinecap="round" />
         <Line x1="14" y1="22" x2="23" y2="22" stroke={colors.textMuted} strokeWidth="1.5" strokeLinecap="round" />
 
-        {/* Precision Scanner Reticle & Laser Beam */}
+        {/* Precision Scanner Reticle & Laser Beam with Gradient */}
         <G>
           {/* Laser Line */}
           <Line
-            x1="12"
+            x1="11"
             y1="27"
-            x2="28"
+            x2="29"
             y2="27"
-            stroke={accentColor}
-            strokeWidth="1.75"
+            stroke="url(#logoLaserGrad)"
+            strokeWidth="2"
             strokeLinecap="round"
           />
 
           {/* Scanner Viewfinder Corner Brackets */}
           <Path
             d="M 12 24 L 12 23 L 14 23"
-            stroke={accentColor}
-            strokeWidth="1.25"
+            stroke="#06B6D4"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <Path
             d="M 28 24 L 28 23 L 26 23"
-            stroke={accentColor}
-            strokeWidth="1.25"
+            stroke="#6366F1"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <Path
             d="M 12 30 L 12 31 L 14 31"
-            stroke={accentColor}
-            strokeWidth="1.25"
+            stroke="#06B6D4"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <Path
             d="M 28 30 L 28 31 L 26 31"
-            stroke={accentColor}
-            strokeWidth="1.25"
+            stroke="#6366F1"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -114,3 +127,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+

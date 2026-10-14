@@ -12,6 +12,8 @@ import {
   Platform,
   SafeAreaView,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Camera,
   ArrowLeft,
@@ -32,8 +34,11 @@ import {
 import Logo from './src/components/Logo';
 import NamingModal from './src/components/NamingModal';
 import HistoryList from './src/components/HistoryList';
+import CameraScannerOverlay from './src/components/CameraScannerOverlay';
+import GradientButton from './src/components/GradientButton';
+import GlassButton from './src/components/GlassButton';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
-import { Spacing, Radius } from './src/constants/theme';
+import { Spacing, Radius, Shadows, Typography } from './src/constants/theme';
 import {
   scanDocumentWithCamera,
   compileImagesToPdf,
@@ -49,6 +54,10 @@ function MainScreen() {
 
   // App views: 'DASHBOARD' | 'PREVIEW'
   const [currentView, setCurrentView] = useState('DASHBOARD');
+
+  // Unified camera scanner overlay
+  const [scannerOverlayVisible, setScannerOverlayVisible] = useState(false);
+  const [scannerAppendMode, setScannerAppendMode] = useState(false);
 
   // Scanned pages state
   const [scannedImages, setScannedImages] = useState([]);
@@ -104,16 +113,26 @@ function MainScreen() {
   };
 
   /**
-   * Trigger native camera document scanner
+   * Open Unified Camera Scanner View
    */
-  const handleStartScan = async (append = false) => {
+  const handleOpenScanner = (append = false) => {
+    setScannerAppendMode(append);
+    setScannerOverlayVisible(true);
+  };
+
+  /**
+   * Execute document scan with camera
+   */
+  const handleExecuteScannerCapture = async (options = {}) => {
+    setScannerOverlayVisible(false);
     try {
       const result = await scanDocumentWithCamera({
-        croppedImageQuality: 90,
+        croppedImageQuality: 92,
+        maxNumDocuments: options.isBatchMode ? undefined : 1,
       });
 
-      if (!result.cancelled && result.images.length > 0) {
-        if (append) {
+      if (!result.cancelled && result.images && result.images.length > 0) {
+        if (scannerAppendMode) {
           setScannedImages((prev) => [...prev, ...result.images]);
           showToast(`Berhasil menambah ${result.images.length} halaman.`);
         } else {
@@ -138,11 +157,11 @@ function MainScreen() {
   const handleRescanCurrentPage = async () => {
     try {
       const result = await scanDocumentWithCamera({
-        croppedImageQuality: 90,
+        croppedImageQuality: 92,
         maxNumDocuments: 1,
       });
 
-      if (!result.cancelled && result.images.length > 0) {
+      if (!result.cancelled && result.images && result.images.length > 0) {
         const replacement = result.images[0];
         setScannedImages((prev) => {
           const updated = [...prev];
@@ -153,7 +172,7 @@ function MainScreen() {
       }
     } catch (error) {
       console.error('Rescan failed:', error);
-      Alert.alert('Pindai Ulang Gagal', 'Gagal memperbarui halaman.');
+      Alert.alert('Pindai Ulang Gagal', 'Gagal memperbarui halaman dokumen.');
     }
   };
 
@@ -164,7 +183,7 @@ function MainScreen() {
     if (scannedImages.length <= 1) {
       Alert.alert(
         'Batalkan Sesi?',
-        'Menghapus satu-satunya halaman akan mengakhiri sesi pindaian ini.',
+        'Menghapus satu-satunya halaman akan membatalkan sesi pindaian ini.',
         [
           { text: 'Kembali', style: 'cancel' },
           {
@@ -185,7 +204,7 @@ function MainScreen() {
     if (selectedPageIndex >= nextImages.length) {
       setSelectedPageIndex(nextImages.length - 1);
     }
-    showToast('Halaman dihapus.');
+    showToast('Halaman berhasil dihapus.');
   };
 
   /**
@@ -272,73 +291,59 @@ function MainScreen() {
     }
   };
 
-  // Header and Dashboard Elements rendered above the history list
+  // Dashboard Header Hero Section: Liquid Glass Card + Electric Cyan to Royal Indigo Gradient CTA
   const renderDashboardHero = () => (
     <View style={styles.dashboardHeroSection}>
-      {/* Storage Utility Strip */}
-      <View
-        style={[
-          styles.storageStrip,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <View style={styles.storageLeft}>
-          <HardDrive color={colors.accent} size={15} />
-          <Text style={[styles.storageText, { color: colors.textSecondary }]}>
-            Penyimpanan Lokal
-          </Text>
-        </View>
-        <Text style={[styles.storageStats, { color: colors.textPrimary }]}>
-          {history.length} Dokumen • {formatBytes(totalBytes)}
-        </Text>
-      </View>
-
-      {/* Hero Action Section */}
+      {/* Prominent Liquid Glass Primary Hero Card */}
       <View
         style={[
           styles.heroCard,
           {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
+            backgroundColor: colors.glassCardBg,
+            borderColor: colors.glassCardBorder,
           },
+          Shadows.glass,
         ]}
       >
+        <BlurView
+          intensity={isDark ? 30 : 50}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+
         <View style={styles.heroTextWrapper}>
-          <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-            Pindai Dokumen Fisik
+          <Text
+            style={[
+              styles.heroTitle,
+              { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+            ]}
+          >
+            Pindai Dokumen Kualitas Tinggi
           </Text>
-          <Text style={[styles.heroDescription, { color: colors.textSecondary }]}>
-            Kamera beresolusi tinggi dengan deteksi sudut otomatis dan konversi PDF instan.
+          <Text
+            style={[
+              styles.heroDescription,
+              { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+            ]}
+          >
+            Deteksi sudut otomatis, filter kontras presisi, dan konversi PDF instan beresolusi tinggi.
           </Text>
         </View>
 
-        {/* Primary CTA Button */}
-        <TouchableOpacity
-          style={[
-            styles.heroScanButton,
-            {
-              backgroundColor: colors.primaryCta,
-            },
-          ]}
-          onPress={() => handleStartScan(false)}
-          activeOpacity={0.8}
-        >
-          <Camera color={colors.primaryCtaText} size={18} strokeWidth={2.25} />
-          <Text style={[styles.heroScanButtonText, { color: colors.primaryCtaText }]}>
-            Mulai Pindai
-          </Text>
-        </TouchableOpacity>
+        {/* Multi-layered Vibrant Gradient CTA Button */}
+        <GradientButton
+          title="Mulai Pindai"
+          icon={<Camera color="#FFFFFF" size={19} strokeWidth={2.3} />}
+          onPress={() => handleOpenScanner(false)}
+          size="lg"
+          style={styles.heroScanButton}
+        />
       </View>
     </View>
   );
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar
         barStyle={colors.statusBarStyle}
         backgroundColor={colors.statusBarBg}
@@ -347,44 +352,64 @@ function MainScreen() {
       {/* ==================== DASHBOARD VIEW ==================== */}
       {currentView === 'DASHBOARD' && (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-          {/* Top Compact Header */}
+          {/* Top Compact Liquid Glass Header */}
           <View
             style={[
               styles.topNavbar,
               {
-                backgroundColor: colors.background,
-                borderBottomColor: colors.border,
+                backgroundColor: colors.glassCardBg,
+                borderBottomColor: colors.glassBorder,
               },
             ]}
           >
+            <BlurView
+              intensity={isDark ? 25 : 45}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
             <View style={styles.navBrand}>
-              <Logo size={28} />
-              <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>
+              <Logo size={30} />
+              <Text
+                style={[
+                  styles.brandTitle,
+                  { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 Lightweight Scanner
               </Text>
+            </View>
+
+            {/* Header Right Actions: Storage Pill & Theme Toggle */}
+            <View style={styles.headerRightActions}>
+              {/* Local Storage Pill */}
               <View
                 style={[
-                  styles.docCounterPill,
+                  styles.storagePill,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: colors.glassPillBg,
+                    borderColor: colors.glassPillBorder,
                   },
                 ]}
               >
-                <Text style={[styles.docCounterText, { color: colors.textSecondary }]}>
-                  {history.length} PDF
+                <HardDrive color={colors.accent} size={13} strokeWidth={2.2} />
+                <Text
+                  style={[
+                    styles.storagePillText,
+                    { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+                  ]}
+                >
+                  {history.length} PDF • {formatBytes(totalBytes)}
                 </Text>
               </View>
-            </View>
 
-            {/* Header Right Actions */}
-            <View style={styles.headerRightActions}>
+              {/* Theme Toggle Button */}
               <TouchableOpacity
                 style={[
                   styles.iconNavButton,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: colors.glassBg,
+                    borderColor: colors.glassBorder,
                   },
                 ]}
                 onPress={toggleTheme}
@@ -392,9 +417,9 @@ function MainScreen() {
                 accessibilityLabel="Ganti Tema"
               >
                 {isDark ? (
-                  <Sun color={colors.accent} size={16} strokeWidth={2} />
+                  <Sun color={colors.accent} size={16} strokeWidth={2.2} />
                 ) : (
-                  <Moon color={colors.textPrimary} size={16} strokeWidth={2} />
+                  <Moon color={colors.textPrimary} size={16} strokeWidth={2.2} />
                 )}
               </TouchableOpacity>
             </View>
@@ -409,7 +434,7 @@ function MainScreen() {
             onSharePdf={handleSharePdf}
             onSaveToDownloads={handleSaveToDownloads}
             onDeletePdf={handleDeleteHistoryItem}
-            onStartScan={() => handleStartScan(false)}
+            onStartScan={() => handleOpenScanner(false)}
             headerComponent={renderDashboardHero()}
           />
         </View>
@@ -423,17 +448,23 @@ function MainScreen() {
             style={[
               styles.previewNavbar,
               {
-                backgroundColor: colors.background,
-                borderBottomColor: colors.border,
+                backgroundColor: colors.glassCardBg,
+                borderBottomColor: colors.glassBorder,
               },
             ]}
           >
+            <BlurView
+              intensity={isDark ? 25 : 45}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
             <TouchableOpacity
               style={[
                 styles.navBackBtn,
                 {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
+                  backgroundColor: colors.glassBg,
+                  borderColor: colors.glassBorder,
                 },
               ]}
               onPress={() => {
@@ -455,14 +486,24 @@ function MainScreen() {
               }}
               activeOpacity={0.7}
             >
-              <ArrowLeft color={colors.textPrimary} size={18} />
+              <ArrowLeft color={colors.textPrimary} size={18} strokeWidth={2.2} />
             </TouchableOpacity>
 
             <View style={styles.previewNavCenter}>
-              <Text style={[styles.previewNavTitle, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  styles.previewNavTitle,
+                  { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 Pratinjau Pindaian
               </Text>
-              <Text style={[styles.previewNavSubtitle, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.previewNavSubtitle,
+                  { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 Halaman {selectedPageIndex + 1} dari {scannedImages.length}
               </Text>
             </View>
@@ -471,66 +512,95 @@ function MainScreen() {
               style={[
                 styles.addPageNavBtn,
                 {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
+                  backgroundColor: isDark ? 'rgba(6, 182, 212, 0.14)' : 'rgba(6, 182, 212, 0.12)',
+                  borderColor: 'rgba(6, 182, 212, 0.30)',
                 },
               ]}
-              onPress={() => handleStartScan(true)}
+              onPress={() => handleOpenScanner(true)}
               activeOpacity={0.7}
             >
               <Plus color={colors.accent} size={16} strokeWidth={2.5} />
-              <Text style={[styles.addPageNavText, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  styles.addPageNavText,
+                  { color: colors.accent, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 Tambah
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Center Page Preview - Edge-to-Edge Clean Presentation */}
+          {/* Center Page Preview - Clean Liquid Glass Presentation */}
           <View style={styles.mainPreviewArea}>
             {scannedImages[selectedPageIndex] ? (
               <View
                 style={[
                   styles.previewImageCard,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: colors.glassCardBg,
+                    borderColor: colors.glassCardBorder,
                   },
+                  Shadows.glass,
                 ]}
               >
+                <BlurView
+                  intensity={isDark ? 20 : 40}
+                  tint={isDark ? 'dark' : 'light'}
+                  style={StyleSheet.absoluteFill}
+                />
+
                 <Image
                   source={{ uri: scannedImages[selectedPageIndex] }}
                   style={styles.previewImage}
                   resizeMode="contain"
                 />
 
-                {/* Explicit Page Index Pill */}
+                {/* Explicit Page Index Glass Pill */}
                 <View
                   style={[
                     styles.previewPageTag,
                     {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
+                      backgroundColor: colors.glassPillBg,
+                      borderColor: colors.glassPillBorder,
                     },
                   ]}
                 >
-                  <Text style={[styles.previewPageTagText, { color: colors.textPrimary }]}>
-                    Hal {selectedPageIndex + 1} dari {scannedImages.length}
+                  <BlurView
+                    intensity={25}
+                    tint={isDark ? 'dark' : 'light'}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <Text
+                    style={[
+                      styles.previewPageTagText,
+                      { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                    ]}
+                  >
+                    Halaman {selectedPageIndex + 1} dari {scannedImages.length}
                   </Text>
                 </View>
               </View>
             ) : null}
           </View>
 
-          {/* Contextual Action Bar: Quick icon buttons for Reorder, Rescan, Delete */}
+          {/* Contextual Action Bar: Reorder, Rescan, Add Page, Delete */}
           <View
             style={[
               styles.contextualActionBar,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor: colors.glassCardBg,
+                borderColor: colors.glassCardBorder,
               },
+              Shadows.glass,
             ]}
           >
+            <BlurView
+              intensity={isDark ? 25 : 45}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
             <TouchableOpacity
               style={[
                 styles.contextActionBtn,
@@ -549,6 +619,7 @@ function MainScreen() {
                   styles.contextActionText,
                   {
                     color: selectedPageIndex === 0 ? colors.textMuted : colors.textPrimary,
+                    fontFamily: Typography.fontFamily,
                   },
                 ]}
               >
@@ -563,8 +634,13 @@ function MainScreen() {
               onPress={handleRescanCurrentPage}
               activeOpacity={0.7}
             >
-              <RotateCcw color={colors.accent} size={16} />
-              <Text style={[styles.contextActionText, { color: colors.textPrimary }]}>
+              <RotateCcw color={colors.accent} size={16} strokeWidth={2.2} />
+              <Text
+                style={[
+                  styles.contextActionText,
+                  { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 Pindai Ulang
               </Text>
             </TouchableOpacity>
@@ -573,12 +649,17 @@ function MainScreen() {
 
             <TouchableOpacity
               style={styles.contextActionBtn}
-              onPress={() => handleStartScan(true)}
+              onPress={() => handleOpenScanner(true)}
               activeOpacity={0.7}
             >
-              <Plus color={colors.accent} size={16} />
-              <Text style={[styles.contextActionText, { color: colors.textPrimary }]}>
-                Tambah Hal
+              <Plus color={colors.accent} size={16} strokeWidth={2.5} />
+              <Text
+                style={[
+                  styles.contextActionText,
+                  { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                ]}
+              >
+                Tambah
               </Text>
             </TouchableOpacity>
 
@@ -589,8 +670,13 @@ function MainScreen() {
               onPress={handleDeleteCurrentPage}
               activeOpacity={0.7}
             >
-              <Trash2 color={colors.danger} size={16} />
-              <Text style={[styles.contextActionText, { color: colors.danger }]}>
+              <Trash2 color={colors.danger} size={16} strokeWidth={2} />
+              <Text
+                style={[
+                  styles.contextActionText,
+                  { color: colors.danger, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 Hapus
               </Text>
             </TouchableOpacity>
@@ -614,6 +700,7 @@ function MainScreen() {
                       selectedPageIndex === scannedImages.length - 1
                         ? colors.textMuted
                         : colors.textPrimary,
+                    fontFamily: Typography.fontFamily,
                   },
                 ]}
               >
@@ -635,11 +722,17 @@ function MainScreen() {
             style={[
               styles.thumbnailCarouselContainer,
               {
-                backgroundColor: colors.background,
-                borderTopColor: colors.border,
+                backgroundColor: colors.glassCardBg,
+                borderTopColor: colors.glassBorder,
               },
             ]}
           >
+            <BlurView
+              intensity={isDark ? 20 : 35}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -653,8 +746,8 @@ function MainScreen() {
                     style={[
                       styles.thumbnailCard,
                       {
-                        backgroundColor: colors.surface,
-                        borderColor: isSelected ? colors.accent : colors.border,
+                        backgroundColor: colors.glassBg,
+                        borderColor: isSelected ? colors.accent : colors.glassBorder,
                         borderWidth: isSelected ? 2 : 1,
                       },
                     ]}
@@ -666,7 +759,7 @@ function MainScreen() {
                       style={[
                         styles.thumbnailPill,
                         {
-                          backgroundColor: isSelected ? colors.accent : colors.surface,
+                          backgroundColor: isSelected ? colors.accent : 'rgba(15, 23, 42, 0.7)',
                           borderColor: colors.border,
                         },
                       ]}
@@ -675,7 +768,7 @@ function MainScreen() {
                         style={[
                           styles.thumbnailPillText,
                           {
-                            color: isSelected ? '#FFFFFF' : colors.textPrimary,
+                            color: '#FFFFFF',
                           },
                         ]}
                       >
@@ -690,15 +783,20 @@ function MainScreen() {
                 style={[
                   styles.addThumbnailCard,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: colors.glassBg,
+                    borderColor: colors.glassBorder,
                   },
                 ]}
-                onPress={() => handleStartScan(true)}
+                onPress={() => handleOpenScanner(true)}
                 activeOpacity={0.7}
               >
-                <Plus color={colors.accent} size={18} strokeWidth={2} />
-                <Text style={[styles.addThumbnailText, { color: colors.textSecondary }]}>
+                <Plus color={colors.accent} size={18} strokeWidth={2.2} />
+                <Text
+                  style={[
+                    styles.addThumbnailText,
+                    { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+                  ]}
+                >
                   Tambah
                 </Text>
               </TouchableOpacity>
@@ -710,34 +808,35 @@ function MainScreen() {
             style={[
               styles.bottomExportBar,
               {
-                backgroundColor: colors.surface,
-                borderTopColor: colors.border,
+                backgroundColor: colors.glassCardBg,
+                borderTopColor: colors.glassBorder,
               },
             ]}
           >
-            <TouchableOpacity
-              style={[
-                styles.exportButton,
-                {
-                  backgroundColor: colors.primaryCta,
-                },
-              ]}
+            <BlurView
+              intensity={isDark ? 30 : 50}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
+            <GradientButton
+              title={`Ekspor ke PDF (${scannedImages.length} Halaman)`}
+              icon={<FileOutput color="#FFFFFF" size={18} strokeWidth={2.3} />}
               onPress={handlePromptExport}
-              activeOpacity={0.8}
-            >
-              <FileOutput color={colors.primaryCtaText} size={17} strokeWidth={2.25} />
-              <Text
-                style={[
-                  styles.exportButtonText,
-                  { color: colors.primaryCtaText },
-                ]}
-              >
-                Ekspor ke PDF ({scannedImages.length} Halaman)
-              </Text>
-            </TouchableOpacity>
+              size="lg"
+              style={styles.exportGradientBtn}
+            />
           </View>
         </View>
       )}
+
+      {/* ==================== UNIFIED CAMERA & SCANNER OVERLAY ==================== */}
+      <CameraScannerOverlay
+        visible={scannerOverlayVisible}
+        onClose={() => setScannerOverlayVisible(false)}
+        onCapture={handleExecuteScannerCapture}
+        initialBatchMode={scannerAppendMode}
+      />
 
       {/* ==================== CUSTOM NAMING MODAL ==================== */}
       <NamingModal
@@ -750,33 +849,58 @@ function MainScreen() {
 
       {/* ==================== SUCCESS STATE MODAL ==================== */}
       {successExportData && (
-        <View style={[styles.successOverlay, { backgroundColor: colors.overlay }]}>
+        <View style={styles.successOverlay}>
+          <BlurView
+            intensity={isDark ? 45 : 30}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            style={[
+              styles.backdropDim,
+              { backgroundColor: isDark ? 'rgba(7, 13, 23, 0.70)' : 'rgba(15, 23, 42, 0.40)' },
+            ]}
+          />
+
           <View
             style={[
               styles.successCard,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor: colors.glassCardBg,
+                borderColor: colors.glassCardBorder,
               },
+              Shadows.glass,
             ]}
           >
-            <View
+            <BlurView
+              intensity={isDark ? 35 : 55}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
+            {/* Glowing Gradient Check Badge */}
+            <LinearGradient
+              colors={['#06B6D4', '#10B981']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.successIconCircle, Shadows.glowCyan]}
+            >
+              <Check color="#FFFFFF" size={28} strokeWidth={3} />
+            </LinearGradient>
+
+            <Text
               style={[
-                styles.successIconCircle,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : colors.successBg,
-                  borderColor: colors.border,
-                },
+                styles.successTitle,
+                { color: colors.textPrimary, fontFamily: Typography.fontFamily },
               ]}
             >
-              <Check color={colors.success} size={28} strokeWidth={3} />
-            </View>
-
-            <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
               PDF Berhasil Dibuat
             </Text>
             <Text
-              style={[styles.successFilename, { color: colors.textSecondary }]}
+              style={[
+                styles.successFilename,
+                { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+              ]}
               numberOfLines={1}
               ellipsizeMode="middle"
             >
@@ -788,67 +912,48 @@ function MainScreen() {
               style={[
                 styles.successStatsRow,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
-                  borderColor: colors.border,
+                  backgroundColor: colors.glassPillBg,
+                  borderColor: colors.glassPillBorder,
                 },
               ]}
             >
-              <Text style={[styles.successStatText, { color: colors.textPrimary }]}>
+              <Text
+                style={[
+                  styles.successStatText,
+                  { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                ]}
+              >
                 {successExportData.pages} Halaman • {successExportData.size}
               </Text>
             </View>
 
-            {/* Action Buttons */}
+            {/* Action Buttons Pairing */}
             <View style={styles.successActions}>
-              <TouchableOpacity
-                style={[
-                  styles.successActionBtn,
-                  {
-                    backgroundColor: colors.primaryCta,
-                  },
-                ]}
+              <GradientButton
+                title="Bagikan PDF"
+                icon={<Share2 color="#FFFFFF" size={16} strokeWidth={2.2} />}
                 onPress={() => handleSharePdf(successExportData)}
-                activeOpacity={0.8}
-              >
-                <Share2 color={colors.primaryCtaText} size={16} />
-                <Text
-                  style={[
-                    styles.successActionBtnText,
-                    { color: colors.primaryCtaText },
-                  ]}
-                >
-                  Bagikan PDF
-                </Text>
-              </TouchableOpacity>
+                size="md"
+              />
 
-              <TouchableOpacity
-                style={[
-                  styles.successSecondaryBtn,
-                  {
-                    backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
-                    borderColor: colors.border,
-                  },
-                ]}
+              <GlassButton
+                title="Simpan ke Unduhan"
+                icon={<DownloadCloud color={colors.textPrimary} size={16} />}
                 onPress={() => handleSaveToDownloads(successExportData)}
-                activeOpacity={0.8}
-              >
-                <DownloadCloud color={colors.textPrimary} size={16} />
-                <Text
-                  style={[
-                    styles.successSecondaryBtnText,
-                    { color: colors.textPrimary },
-                  ]}
-                >
-                  Simpan ke Downloads
-                </Text>
-              </TouchableOpacity>
+                size="md"
+              />
 
               <TouchableOpacity
                 style={styles.successDoneBtn}
                 onPress={handleFinishSuccess}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.successDoneText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[
+                    styles.successDoneText,
+                    { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+                  ]}
+                >
                   Selesai
                 </Text>
               </TouchableOpacity>
@@ -876,7 +981,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  /* Top Compact Header */
+  backdropDim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  /* Top Compact Liquid Glass Header */
   topNavbar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -884,6 +992,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
   navBrand: {
     flexDirection: 'row',
@@ -895,87 +1005,59 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  docCounterPill: {
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  docCounterText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
   },
+  storagePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Spacing.xs + 2,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  storagePillText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   iconNavButton: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.sm,
+    width: 36,
+    height: 36,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  /* Dashboard Hero & Storage Strip */
+  /* Dashboard Hero Section */
   dashboardHeroSection: {
     paddingTop: Spacing.xs,
-    marginBottom: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  storageStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  storageLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  storageText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  storageStats: {
-    fontSize: 12,
-    fontWeight: '600',
+    marginBottom: Spacing.md,
   },
   heroCard: {
-    padding: Spacing.md,
-    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     gap: Spacing.md,
+    overflow: 'hidden',
+    position: 'relative',
   },
   heroTextWrapper: {
-    gap: 4,
+    gap: 6,
   },
   heroTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   heroDescription: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   heroScanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    borderRadius: Radius.sm,
-    gap: Spacing.xs,
-  },
-  heroScanButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.1,
+    width: '100%',
   },
   /* Preview Top Navbar */
   previewNavbar: {
@@ -985,11 +1067,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
   navBackBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.sm,
+    width: 38,
+    height: 38,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1009,14 +1093,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.sm,
-    height: 36,
-    borderRadius: Radius.sm,
+    height: 38,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     gap: 4,
   },
   addPageNavText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   /* Main Preview Area */
   mainPreviewArea: {
@@ -1028,7 +1112,7 @@ const styles = StyleSheet.create({
   previewImageCard: {
     width: '100%',
     height: '100%',
-    borderRadius: Radius.md,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
@@ -1036,21 +1120,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewImage: {
-    width: '96%',
-    height: '96%',
+    width: '95%',
+    height: '95%',
   },
   previewPageTag: {
     position: 'absolute',
     bottom: Spacing.sm,
     alignSelf: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 5,
     borderRadius: Radius.full,
     borderWidth: 1,
+    overflow: 'hidden',
   },
   previewPageTagText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   /* Contextual Action Bar */
   contextualActionBar: {
@@ -1060,8 +1145,10 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     paddingVertical: Spacing.xs,
-    borderRadius: Radius.md,
+    borderRadius: Radius.xl,
     borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
   contextActionBtn: {
     flexDirection: 'row',
@@ -1071,7 +1158,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   disabledContextBtn: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
   contextActionText: {
     fontSize: 12,
@@ -1085,15 +1172,17 @@ const styles = StyleSheet.create({
   thumbnailCarouselContainer: {
     paddingVertical: Spacing.xs + 2,
     borderTopWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
   thumbnailScrollContent: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.xs,
   },
   thumbnailCard: {
-    width: 54,
-    height: 72,
-    borderRadius: Radius.sm,
+    width: 56,
+    height: 74,
+    borderRadius: Radius.md,
     overflow: 'hidden',
     position: 'relative',
     justifyContent: 'center',
@@ -1117,14 +1206,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   addThumbnailCard: {
-    width: 54,
-    height: 72,
-    borderRadius: Radius.sm,
+    width: 56,
+    height: 74,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   addThumbnailText: {
     fontSize: 10,
@@ -1133,21 +1222,13 @@ const styles = StyleSheet.create({
   /* Bottom Export Bar */
   bottomExportBar: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
     borderTopWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 46,
-    borderRadius: Radius.sm,
-    gap: Spacing.xs,
-  },
-  exportButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.1,
+  exportGradientBtn: {
+    width: '100%',
   },
   /* Success Overlay & Card */
   successOverlay: {
@@ -1159,30 +1240,31 @@ const styles = StyleSheet.create({
   successCard: {
     width: '100%',
     maxWidth: 360,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
+    borderRadius: Radius.xxl,
+    padding: Spacing.xl,
     borderWidth: 1,
     alignItems: 'center',
+    overflow: 'hidden',
+    position: 'relative',
   },
   successIconCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 1,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   successTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   successFilename: {
     fontSize: 13,
     marginBottom: Spacing.sm,
     textAlign: 'center',
-    maxWidth: 260,
+    maxWidth: 280,
   },
   successStatsRow: {
     paddingHorizontal: Spacing.md,
@@ -1197,32 +1279,7 @@ const styles = StyleSheet.create({
   },
   successActions: {
     width: '100%',
-    gap: Spacing.xs,
-  },
-  successActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    borderRadius: Radius.sm,
-    gap: Spacing.xs,
-  },
-  successActionBtnText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-  },
-  successSecondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    gap: Spacing.xs,
-  },
-  successSecondaryBtnText: {
-    fontSize: 13.5,
-    fontWeight: '600',
+    gap: Spacing.sm,
   },
   successDoneBtn: {
     height: 38,

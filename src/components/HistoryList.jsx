@@ -9,6 +9,7 @@ import {
   TextInput,
   RefreshControl,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import {
   FileText,
   Share2,
@@ -19,7 +20,8 @@ import {
   Camera,
 } from './Icons';
 import { useAppTheme } from '../context/ThemeContext';
-import { Spacing, Radius, Typography } from '../constants/theme';
+import { Spacing, Radius, Typography, Shadows } from '../constants/theme';
+import GradientButton from './GradientButton';
 
 /**
  * Format ISO date string into Indonesian friendly display: "28 Sep 2026, 14:30"
@@ -71,7 +73,7 @@ export default function HistoryList({
   const confirmDelete = (item) => {
     Alert.alert(
       'Hapus Dokumen?',
-      `Hapus "${item.fileName}" secara permanen dari perangkat?`,
+      `Hapus "${item.fileName}" secara permanen dari penyimpanan perangkat?`,
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -87,18 +89,23 @@ export default function HistoryList({
     <View style={styles.listHeaderWrapper}>
       {headerComponent}
 
-      {/* Search Input Bar if items exist */}
+      {/* Frosted Glass Search Bar if items exist */}
       {history.length > 0 && (
         <View
           style={[
             styles.searchBar,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+              backgroundColor: colors.glassInputBg,
+              borderColor: colors.glassBorder,
             },
           ]}
         >
-          <Search color={colors.textSecondary} size={16} />
+          <BlurView
+            intensity={isDark ? 20 : 35}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+          <Search color={colors.accent} size={17} strokeWidth={2.2} />
           <TextInput
             style={[
               styles.searchInput,
@@ -127,12 +134,32 @@ export default function HistoryList({
 
       {/* Section Subheader */}
       <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+          ]}
+        >
           Dokumen Tersimpan
         </Text>
-        <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-          {filteredHistory.length} berkas
-        </Text>
+        <View
+          style={[
+            styles.sectionCountBadge,
+            {
+              backgroundColor: colors.glassPillBg,
+              borderColor: colors.glassPillBorder,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionCount,
+              { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+            ]}
+          >
+            {filteredHistory.length} berkas
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -140,22 +167,46 @@ export default function HistoryList({
   const renderEmptyState = () => {
     if (searchQuery.trim()) {
       return (
-        <View style={styles.emptyContainer}>
+        <View
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: colors.glassCardBg,
+              borderColor: colors.glassCardBorder,
+            },
+            Shadows.glass,
+          ]}
+        >
+          <BlurView
+            intensity={isDark ? 25 : 40}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
           <View
             style={[
               styles.emptyIconBox,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor: colors.glassBg,
+                borderColor: colors.glassBorder,
               },
             ]}
           >
             <Search color={colors.textMuted} size={28} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.emptyTitle,
+              { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+            ]}
+          >
             Tidak Ditemukan
           </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.emptySubtitle,
+              { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+            ]}
+          >
             {`Tidak ada dokumen yang cocok dengan "${searchQuery}".`}
           </Text>
         </View>
@@ -163,45 +214,56 @@ export default function HistoryList({
     }
 
     return (
-      <View style={styles.emptyContainer}>
+      <View
+        style={[
+          styles.emptyCard,
+          {
+            backgroundColor: colors.glassCardBg,
+            borderColor: colors.glassCardBorder,
+          },
+          Shadows.glass,
+        ]}
+      >
+        <BlurView
+          intensity={isDark ? 25 : 40}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
         <View
           style={[
             styles.emptyIconBox,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+              backgroundColor: colors.glassBg,
+              borderColor: colors.glassBorder,
             },
           ]}
         >
-          <FileText color={colors.textMuted} size={32} />
+          <FileText color={colors.accent} size={30} strokeWidth={2} />
         </View>
-        <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+        <Text
+          style={[
+            styles.emptyTitle,
+            { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+          ]}
+        >
           Belum Ada Dokumen
         </Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-          Belum ada dokumen. Ketuk &apos;Mulai Pindai&apos; untuk membuat PDF pertama.
+        <Text
+          style={[
+            styles.emptySubtitle,
+            { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+          ]}
+        >
+          Pindai dokumen fisik pertamamu dengan kamera berkualitas tinggi dan deteksi sudut instan.
         </Text>
         {onStartScan && (
-          <TouchableOpacity
-            style={[
-              styles.emptyCtaButton,
-              {
-                backgroundColor: colors.primaryCta,
-              },
-            ]}
+          <GradientButton
+            title="Mulai Pindai Sekarang"
+            icon={<Camera color="#FFFFFF" size={17} strokeWidth={2.2} />}
             onPress={onStartScan}
-            activeOpacity={0.8}
-          >
-            <Camera color={colors.primaryCtaText} size={16} />
-            <Text
-              style={[
-                styles.emptyCtaButtonText,
-                { color: colors.primaryCtaText },
-              ]}
-            >
-              Mulai Pindai
-            </Text>
-          </TouchableOpacity>
+            size="md"
+            style={styles.emptyGradientCta}
+          />
         )}
       </View>
     );
@@ -212,27 +274,34 @@ export default function HistoryList({
       style={[
         styles.rowItem,
         {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
+          backgroundColor: colors.glassCardBg,
+          borderColor: colors.glassCardBorder,
         },
+        Shadows.glass,
       ]}
     >
+      <BlurView
+        intensity={isDark ? 25 : 45}
+        tint={isDark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+
       <TouchableOpacity
         style={styles.rowMain}
         onPress={() => onOpenPdf(item)}
         activeOpacity={0.7}
       >
-        {/* PDF Document Icon Badge */}
+        {/* PDF Document Icon Badge with frosted glass styling */}
         <View
           style={[
             styles.pdfBadge,
             {
-              backgroundColor: isDark ? colors.surfaceSecondary : colors.accentSubtle,
-              borderColor: colors.border,
+              backgroundColor: isDark ? 'rgba(6, 182, 212, 0.12)' : 'rgba(6, 182, 212, 0.10)',
+              borderColor: 'rgba(6, 182, 212, 0.25)',
             },
           ]}
         >
-          <FileText color={colors.accent} size={18} />
+          <FileText color={colors.accent} size={18} strokeWidth={2} />
           {item.pages > 1 && (
             <View
               style={[
@@ -264,25 +333,35 @@ export default function HistoryList({
           </Text>
 
           <View style={styles.metaRow}>
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.metaText,
+                { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+              ]}
+            >
               {formatDate(item.createdAt)}
             </Text>
             <Text style={[styles.metaDot, { color: colors.textMuted }]}>•</Text>
-            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.metaText,
+                { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+              ]}
+            >
               {item.size || '0 B'}
             </Text>
           </View>
         </View>
       </TouchableOpacity>
 
-      {/* Action Buttons: Download, Share, Delete */}
+      {/* Quick Action Buttons: Download, Share, Delete with Liquid Glass Styling */}
       <View style={styles.actionGroup}>
         <TouchableOpacity
           style={[
             styles.actionIconButton,
             {
-              backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
-              borderColor: colors.border,
+              backgroundColor: colors.glassBg,
+              borderColor: colors.glassBorder,
             },
           ]}
           onPress={() => onSaveToDownloads(item)}
@@ -290,15 +369,15 @@ export default function HistoryList({
           activeOpacity={0.7}
           accessibilityLabel="Simpan ke Penyimpanan"
         >
-          <DownloadCloud color={colors.textSecondary} size={16} />
+          <DownloadCloud color={colors.textPrimary} size={15} />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.actionIconButton,
             {
-              backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
-              borderColor: colors.border,
+              backgroundColor: isDark ? 'rgba(6, 182, 212, 0.12)' : 'rgba(6, 182, 212, 0.10)',
+              borderColor: 'rgba(6, 182, 212, 0.25)',
             },
           ]}
           onPress={() => onSharePdf(item)}
@@ -306,15 +385,15 @@ export default function HistoryList({
           activeOpacity={0.7}
           accessibilityLabel="Bagikan PDF"
         >
-          <Share2 color={colors.accent} size={16} />
+          <Share2 color={colors.accent} size={15} />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.actionIconButton,
             {
-              backgroundColor: isDark ? colors.dangerBg : colors.dangerBg,
-              borderColor: isDark ? colors.dangerBorder : colors.dangerBorder,
+              backgroundColor: colors.dangerBg,
+              borderColor: colors.dangerBorder,
             },
           ]}
           onPress={() => confirmDelete(item)}
@@ -322,7 +401,7 @@ export default function HistoryList({
           activeOpacity={0.7}
           accessibilityLabel="Hapus PDF"
         >
-          <Trash2 color={colors.danger} size={16} />
+          <Trash2 color={colors.danger} size={15} />
         </TouchableOpacity>
       </View>
     </View>
@@ -363,45 +442,56 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.sm,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    height: 40,
+    paddingHorizontal: Spacing.md,
+    height: 44,
     marginBottom: Spacing.md,
-    gap: Spacing.xs,
+    gap: Spacing.xs + 2,
+    overflow: 'hidden',
+    position: 'relative',
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 13.5,
     paddingVertical: 0,
   },
   searchClearBtn: {
-    padding: 2,
+    padding: 4,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.sm,
+    paddingHorizontal: 2,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: -0.1,
   },
+  sectionCountBadge: {
+    paddingHorizontal: Spacing.xs + 2,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
   sectionCount: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11.5,
+    fontWeight: '600',
   },
   rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.sm + 2,
+    marginBottom: Spacing.xs + 2,
+    overflow: 'hidden',
+    position: 'relative',
   },
   rowMain: {
     flexDirection: 'row',
@@ -410,9 +500,9 @@ const styles = StyleSheet.create({
     marginRight: Spacing.xs,
   },
   pdfBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.sm,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -459,30 +549,34 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actionIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.sm,
+    width: 34,
+    height: 34,
+    borderRadius: Radius.md,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyCard: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginTop: Spacing.xs,
   },
   emptyIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.md,
+    width: 60,
+    height: 60,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
   emptyTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
     textAlign: 'center',
@@ -492,18 +586,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: Spacing.lg,
-    maxWidth: 280,
+    maxWidth: 290,
   },
-  emptyCtaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.xs + 2,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.sm,
-  },
-  emptyCtaButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
+  emptyGradientCta: {
+    width: '100%',
+    maxWidth: 240,
   },
 });

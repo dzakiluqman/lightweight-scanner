@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path, Circle, Line, Polyline } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Polyline, Polygon } from 'react-native-svg';
 
 export const Camera = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -143,3 +143,58 @@ export const ShieldAlert = ({ size = 20, color = 'currentColor', strokeWidth = 2
     <Line x1="12" y1="16" x2="12.01" y2="16" />
   </Svg>
 );
+
+export const Zap = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </Svg>
+);
+
+export const ZapOff = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Polyline points="12.41 6.75 13 2 10.57 4.92" />
+    <Polyline points="18.57 12.91 21 10 15.66 10" />
+    <Polyline points="8 8 3 14 12 14 11 22 16 16" />
+    <Line x1="1" y1="1" x2="23" y2="23" />
+  </Svg>
+);
+
+export const Crop = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M6 2v14a2 2 0 0 0 2 2h14" />
+    <Path d="M18 22V8a2 2 0 0 0-2-2H2" />
+  </Svg>
+);
+
+export const Layers = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <Polyline points="2 17 12 22 22 17" />
+    <Polyline points="2 12 12 17 22 12" />
+  </Svg>
+);
+
+export const Sliders = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Line x1="4" y1="21" x2="4" y2="14" />
+    <Line x1="4" y1="10" x2="4" y2="3" />
+    <Line x1="12" y1="21" x2="12" y2="12" />
+    <Line x1="12" y1="8" x2="12" y2="3" />
+    <Line x1="20" y1="21" x2="20" y2="16" />
+    <Line x1="20" y1="12" x2="20" y2="3" />
+    <Line x1="1" y1="14" x2="7" y2="14" />
+    <Line x1="9" y1="8" x2="15" y2="8" />
+    <Line x1="17" y1="16" x2="23" y2="16" />
+  </Svg>
+);
+
+export const Sparkles = ({ size = 20, color = 'currentColor', strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    <Path d="M5 3v4" />
+    <Path d="M19 17v4" />
+    <Path d="M3 5h4" />
+    <Path d="M17 19h4" />
+  </Svg>
+);
+

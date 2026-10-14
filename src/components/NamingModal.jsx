@@ -6,16 +6,18 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { FileText, Check, X, ShieldAlert } from './Icons';
 import { generateDefaultFilename, sanitizeFilename } from '../services/pdfService';
 import { useAppTheme } from '../context/ThemeContext';
-import { Spacing, Radius, Typography } from '../constants/theme';
+import { Spacing, Radius, Typography, Shadows } from '../constants/theme';
+import GradientButton from './GradientButton';
+import GlassButton from './GlassButton';
 
 function NamingModalContent({
   visible,
@@ -50,75 +52,128 @@ function NamingModalContent({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={isLoading ? undefined : onClose}
       statusBarTranslucent
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+        <View style={styles.overlay}>
+          {/* Liquid Glass Overlay Blur */}
+          <BlurView
+            intensity={isDark ? 45 : 30}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            style={[
+              styles.backdropDim,
+              { backgroundColor: isDark ? 'rgba(7, 13, 23, 0.65)' : 'rgba(15, 23, 42, 0.35)' },
+            ]}
+          />
+
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.keyboardContainer}
           >
+            {/* Liquid Glass Bottom-Sheet Container */}
             <View
               style={[
-                styles.modalCard,
+                styles.bottomSheetCard,
                 {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
+                  backgroundColor: colors.glassCardBg,
+                  borderColor: colors.glassBorder,
                 },
+                Shadows.glass,
               ]}
             >
-              {/* Header Title with Document Pill */}
+              {/* Card Blur Texture */}
+              <BlurView
+                intensity={isDark ? 35 : 55}
+                tint={isDark ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Sheet Drag Indicator Handle */}
+              <View style={styles.dragHandleWrapper}>
+                <View
+                  style={[
+                    styles.dragHandle,
+                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(15, 23, 42, 0.20)' },
+                  ]}
+                />
+              </View>
+
+              {/* Header Row: Document Vector Icon + Human Indonesian Copy */}
               <View style={styles.headerRow}>
                 <View
                   style={[
                     styles.iconBox,
                     {
-                      backgroundColor: isDark ? colors.surfaceSecondary : colors.accentSubtle,
-                      borderColor: colors.border,
+                      backgroundColor: isDark ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.12)',
+                      borderColor: 'rgba(6, 182, 212, 0.30)',
                     },
                   ]}
                 >
-                  <FileText color={colors.accent} size={20} />
+                  <FileText color={colors.accent} size={22} strokeWidth={2} />
                 </View>
                 <View style={styles.headerTextCol}>
-                  <Text style={[styles.title, { color: colors.textPrimary }]}>
+                  <Text
+                    style={[
+                      styles.title,
+                      { color: colors.textPrimary, fontFamily: Typography.fontFamily },
+                    ]}
+                  >
                     Beri Nama Dokumen
                   </Text>
-                  <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    {pageCount} halaman siap dikompilasi
+                  <Text
+                    style={[
+                      styles.subtitle,
+                      { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+                    ]}
+                  >
+                    {pageCount} halaman siap dikompilasi ke PDF
                   </Text>
                 </View>
               </View>
 
-              {/* Input Group */}
+              {/* High-Contrast Input Group */}
               <View style={styles.inputSection}>
                 <View style={styles.inputLabelRow}>
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.inputLabel,
+                      { color: colors.textSecondary, fontFamily: Typography.fontFamily },
+                    ]}
+                  >
                     Nama Berkas
                   </Text>
                   <View
                     style={[
                       styles.extensionPill,
                       {
-                        backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
-                        borderColor: colors.border,
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)',
+                        borderColor: colors.glassBorder,
                       },
                     ]}
                   >
-                    <Text style={[styles.extensionText, { color: colors.accent }]}>
+                    <Text
+                      style={[
+                        styles.extensionText,
+                        { color: colors.accent, fontFamily: Typography.fontFamily },
+                      ]}
+                    >
                       .pdf
                     </Text>
                   </View>
                 </View>
 
+                {/* Glassmorphic Input Field */}
                 <View
                   style={[
                     styles.inputWrapper,
                     {
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.border,
+                      backgroundColor: colors.glassInputBg,
+                      borderColor: colors.borderHighlight,
                     },
                   ]}
                 >
@@ -154,7 +209,7 @@ function NamingModalContent({
                   )}
                 </View>
 
-                {/* Sanitization feedback */}
+                {/* Live Sanitization feedback */}
                 {hasIllegalCharNotice ? (
                   <View style={styles.noticeRow}>
                     <ShieldAlert color="#F59E0B" size={14} />
@@ -164,75 +219,31 @@ function NamingModalContent({
                   </View>
                 ) : (
                   <Text style={[styles.helperText, { color: colors.textMuted }]}>
-                    Format default: Scan_YYYYMMDD_HHMMSS
+                    Format otomatis: Scan_YYYYMMDD_HHMMSS
                   </Text>
                 )}
               </View>
 
-              {/* Action Buttons Pairing */}
+              {/* Action Pairings: Ghost Glass Button (Batal) + Solid Vibrant Gradient Button (Simpan & Ekspor) */}
               <View style={styles.buttonRow}>
-                {/* Ghost / Outline Button for Batal */}
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    styles.cancelButton,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: isDark ? colors.surfaceSecondary : colors.surfaceSecondary,
-                    },
-                  ]}
+                {/* Ghost Glass Button for Batal */}
+                <GlassButton
+                  title="Batal"
                   onPress={onClose}
                   disabled={isLoading}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.cancelButtonText, { color: colors.textPrimary }]}>
-                    Batal
-                  </Text>
-                </TouchableOpacity>
+                  style={styles.cancelButton}
+                  textStyle={styles.cancelText}
+                />
 
-                {/* High Contrast Solid Button for Simpan & Ekspor */}
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    styles.exportButton,
-                    {
-                      backgroundColor: colors.primaryCta,
-                    },
-                    (!fileName.trim() || isLoading) && styles.disabledButton,
-                  ]}
+                {/* Solid Vibrant Gradient Button for Simpan & Ekspor */}
+                <GradientButton
+                  title="Simpan & Ekspor"
+                  icon={<Check color="#FFFFFF" size={17} strokeWidth={2.5} />}
                   onPress={handleExport}
                   disabled={!fileName.trim() || isLoading}
-                  activeOpacity={0.8}
-                >
-                  {isLoading ? (
-                    <View style={styles.actionContent}>
-                      <ActivityIndicator
-                        color={colors.primaryCtaText}
-                        size="small"
-                      />
-                      <Text
-                        style={[
-                          styles.exportButtonText,
-                          { color: colors.primaryCtaText },
-                        ]}
-                      >
-                        Memproses...
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.actionContent}>
-                      <Check color={colors.primaryCtaText} size={16} strokeWidth={2.5} />
-                      <Text
-                        style={[
-                          styles.exportButtonText,
-                          { color: colors.primaryCtaText },
-                        ]}
-                      >
-                        Simpan & Ekspor
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                  loading={isLoading}
+                  style={styles.exportButton}
+                />
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -243,9 +254,7 @@ function NamingModalContent({
 }
 
 /**
- * Handcrafted Custom File Naming Modal
- * Dialog style with strict 8pt grid, 1px subtle border, system typography,
- * high-contrast buttons, and live sanitization.
+ * Handcrafted Liquid Glass Bottom-Sheet File Naming & Export Dialog
  */
 export default function NamingModal({
   visible,
@@ -270,31 +279,50 @@ export default function NamingModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: Spacing.md,
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFillObject,
   },
   keyboardContainer: {
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'flex-end',
   },
-  modalCard: {
+  bottomSheetCard: {
     width: '100%',
-    maxWidth: 400,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
+    maxWidth: 480,
+    borderTopLeftRadius: Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xl + 12 : Spacing.xl,
     borderWidth: 1,
+    borderBottomWidth: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  dragHandleWrapper: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  dragHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     gap: Spacing.sm,
   },
   iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.sm,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -308,7 +336,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     marginTop: 2,
   },
   inputSection: {
@@ -321,39 +349,40 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   extensionPill: {
-    paddingHorizontal: Spacing.xs,
+    paddingHorizontal: Spacing.xs + 2,
     paddingVertical: 2,
-    borderRadius: Radius.xs,
+    borderRadius: Radius.sm,
     borderWidth: 1,
   },
   extensionText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '800',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.sm,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    height: 44,
+    paddingHorizontal: Spacing.md,
+    height: 48,
   },
   textInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 14.5,
     paddingVertical: 0,
+    fontWeight: '500',
   },
   clearBtn: {
     padding: 4,
   },
   helperText: {
-    fontSize: 12,
+    fontSize: 11.5,
     marginTop: Spacing.xs,
   },
   noticeRow: {
@@ -363,39 +392,26 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   noticeText: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#F59E0B',
     flex: 1,
   },
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-  },
-  button: {
-    flex: 1,
-    height: 44,
-    borderRadius: Radius.sm,
-    justifyContent: 'center',
     alignItems: 'center',
   },
   cancelButton: {
-    borderWidth: 1,
+    flex: 1,
+    height: 46,
+    borderRadius: Radius.lg,
   },
-  cancelButtonText: {
-    fontSize: 14,
+  cancelText: {
     fontWeight: '600',
   },
-  exportButton: {},
-  exportButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.45,
-  },
-  actionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  exportButton: {
+    flex: 1.5,
+    height: 46,
+    borderRadius: Radius.lg,
   },
 });
