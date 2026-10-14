@@ -33,8 +33,7 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
-      ],
-      "predictiveBackGestureEnabled": false
+      ]
     },
     "web": {
       "output": "static",
@@ -42,7 +41,6 @@
     },
     "plugins": [
       "react-native-document-scanner-plugin",
-      "expo-sharing",
       [
         "expo-media-library",
         {
