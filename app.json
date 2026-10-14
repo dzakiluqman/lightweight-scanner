@@ -7,18 +7,17 @@
     "icon": "./assets/images/icon.png",
     "scheme": "lightweightscanner",
     "userInterfaceStyle": "dark",
+    "jsEngine": "hermes",
     "ios": {
       "bundleIdentifier": "com.lightweight.pdfscanner",
       "supportsTablet": false,
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSCameraUsageDescription": "Aplikasi ini memerlukan akses ke kamera untuk memindai dokumen fisik ke format PDF berkualitas tinggi.",
-        "NSPhotoLibraryUsageDescription": "Aplikasi ini memerlukan akses ke galeri untuk menyimpan dan mengelola dokumen PDF hasil pindaian."
+        "NSCameraUsageDescription": "Aplikasi ini memerlukan akses ke kamera untuk memindai dokumen fisik ke format PDF berkualitas tinggi."
       }
     },
     "android": {
       "package": "com.lightweight.pdfscanner",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -26,13 +25,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -42,22 +35,19 @@
     "plugins": [
       "react-native-document-scanner-plugin",
       [
-        "expo-media-library",
-        {
-          "photosPermission": "Izinkan Lightweight PDF Scanner mengakses galeri untuk menyimpan dokumen PDF.",
-          "savePhotosPermission": "Izinkan Lightweight PDF Scanner menyimpan file PDF hasil pindaian."
-        }
-      ],
-      [
         "expo-build-properties",
         {
           "android": {
+            "minSdkVersion": 29,
+            "targetSdkVersion": 35,
+            "compileSdkVersion": 35,
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinify": true,
             "abiFilters": [
               "arm64-v8a"
             ],
-            "enableMinifyInReleaseBuilds": true
+            "extraProguardRules": "-dontwarn com.google.**\n-dontwarn org.opencv.**\n-ignorewarnings\n-stripdebugattributes\n-renamesourcefileattribute SourceFile\n-assumenosideeffects class android.util.Log { public static boolean isLoggable(java.lang.String, int); public static int v(...); public static int d(...); public static int i(...); public static int w(...); public static int e(...); }"
           }
         }
       ]

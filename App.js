@@ -77,8 +77,8 @@ function MainScreen() {
     try {
       const records = await getScanHistory();
       setHistory(records);
-    } catch (err) {
-      console.error('Failed to load history:', err);
+    } catch (_err) {
+      // Handled silently
     } finally {
       setRefreshing(false);
     }
@@ -93,8 +93,8 @@ function MainScreen() {
           setHistory(records);
         }
       })
-      .catch((err) => {
-        console.error('Failed to load history on mount:', err);
+      .catch((_err) => {
+        // Handled silently
       });
 
     return () => {
@@ -141,8 +141,7 @@ function MainScreen() {
           setCurrentView('PREVIEW');
         }
       }
-    } catch (error) {
-      console.error('Scan failed:', error);
+    } catch (_error) {
       Alert.alert(
         'Gagal Memindai',
         'Tidak dapat mengakses kamera pemindai. Pastikan izin kamera telah diberikan di pengaturan sistem.',
@@ -170,8 +169,7 @@ function MainScreen() {
         });
         showToast('Halaman berhasil dipindai ulang.');
       }
-    } catch (error) {
-      console.error('Rescan failed:', error);
+    } catch (_error) {
       Alert.alert('Pindai Ulang Gagal', 'Gagal memperbarui halaman dokumen.');
     }
   };
@@ -246,7 +244,6 @@ function MainScreen() {
       setSuccessExportData(result);
       await loadHistory();
     } catch (error) {
-      console.error('Export error:', error);
       Alert.alert(
         'Ekspor Gagal',
         error.message || 'Terjadi kesalahan saat mengonversi dokumen ke PDF.'

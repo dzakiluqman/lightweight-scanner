@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { Palette, ThemePalette, ThemeType } from '../constants/theme';
 
-const THEME_STORAGE_KEY = '@lightweight_scanner_theme_mode';
+const THEME_FILE = `${FileSystem.documentDirectory || ''}theme_pref.txt`;
 
 interface ThemeContextValue {
   theme: ThemeType;
@@ -23,21 +23,26 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemScheme = useColorScheme();
-  const [theme, setThemeState] = useState<ThemeType>('light');
+  const [theme, setThemeState] = useState<ThemeType>('dark');
 
   useEffect(() => {
     const loadStoredTheme = async () => {
       try {
-        const storedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (storedTheme === 'light' || storedTheme === 'dark') {
-          setThemeState(storedTheme);
-        } else if (systemScheme === 'dark' || systemScheme === 'light') {
+        const info = await FileSystem.getInfoAsync(THEME_FILE);
+        if (info.exists) {
+          const stored = await FileSystem.readAsStringAsync(THEME_FILE);
+          if (stored === 'light' || stored === 'dark') {
+            setThemeState(stored);
+            return;
+          }
+        }
+        if (systemScheme === 'dark' || systemScheme === 'light') {
           setThemeState(systemScheme);
         } else {
-          setThemeState('light');
+          setThemeState('dark');
         }
-      } catch (e) {
-        console.warn('Failed to load theme preference:', e);
+      } catch {
+        setThemeState('dark');
       }
     };
     loadStoredTheme();
@@ -46,18 +51,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setTheme = useCallback(async (newTheme: ThemeType) => {
     setThemeState(newTheme);
     try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    } catch (e) {
-      console.warn('Failed to save theme preference:', e);
+      await FileSystem.writeAsStringAsync(THEME_FILE, newTheme);
+    } catch {
+      // Handled silently
     }
   }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeState((prev) => {
       const next = prev === 'light' ? 'dark' : 'light';
-      AsyncStorage.setItem(THEME_STORAGE_KEY, next).catch((e) =>
-        console.warn('Failed to save theme toggle:', e)
-      );
+      FileSystem.writeAsStringAsync(THEME_FILE, next).catch(() => {});
       return next;
     });
   }, []);

@@ -2,12 +2,10 @@ import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 
-export const STORAGE_HISTORY_KEY = '@lightweight_pdf_scanner_history';
 export const SCANS_DIR = `${FileSystem.documentDirectory || ''}scans/`;
+export const HISTORY_FILE = `${FileSystem.documentDirectory || ''}scan_history.json`;
 
 /**
  * Format bytes into readable string (KB, MB)
@@ -44,11 +42,10 @@ export function sanitizeFilename(filename) {
   if (!filename || typeof filename !== 'string') {
     return generateDefaultFilename();
   }
-  // Strip illegal chars and trim
   const clean = filename
     .replace(/[/\\:*?"<>|]/g, '')
     .trim()
-    .replace(/\.pdf$/i, ''); // strip .pdf if typed by user
+    .replace(/\.pdf$/i, '');
 
   return clean.length > 0 ? clean : generateDefaultFilename();
 }
@@ -62,8 +59,8 @@ export async function ensureScansDirectory() {
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(SCANS_DIR, { intermediates: true });
     }
-  } catch (error) {
-    console.warn('Could not create scans directory:', error);
+  } catch (_error) {
+    // Handled silently
   }
 }
 
@@ -91,7 +88,6 @@ export async function scanDocumentWithCamera(options = {}) {
       images: [],
     };
   } catch (error) {
-    console.error('DocumentScanner error:', error);
     throw error;
   }
 }
@@ -107,8 +103,7 @@ async function generatePdfHtml(imageUris) {
           encoding: 'base64',
         });
         return `data:image/jpeg;base64,${base64Data}`;
-      } catch (err) {
-        console.warn('Fallback reading image URI directly:', err);
+      } catch (_err) {
         return uri;
       }
     })
@@ -224,18 +219,21 @@ export async function compileImagesToPdf(imageUris, rawFilename) {
     createdAt: new Date().toISOString(),
   };
 
-  // 5. Persist to History in AsyncStorage
+  // 5. Persist to History in lightweight JSON file
   await addScanToHistory(newScanRecord);
 
   return newScanRecord;
 }
 
 /**
- * Fetch scan history from AsyncStorage and prune entries whose files no longer exist
+ * Fetch scan history from lightweight JSON file and prune entries whose files no longer exist
  */
 export async function getScanHistory() {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_HISTORY_KEY);
+    const fileInfo = await FileSystem.getInfoAsync(HISTORY_FILE);
+    if (!fileInfo.exists) return [];
+
+    const raw = await FileSystem.readAsStringAsync(HISTORY_FILE);
     if (!raw) return [];
 
     const items = JSON.parse(raw);
@@ -254,7 +252,7 @@ export async function getScanHistory() {
               size: formatBytes(info.size),
             });
           }
-        } catch {
+        } catch (_err) {
           // If check fails, exclude
         }
       }
@@ -262,13 +260,12 @@ export async function getScanHistory() {
 
     // Save cleaned list if items were pruned
     if (validatedItems.length !== items.length) {
-      await AsyncStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(validatedItems));
+      await FileSystem.writeAsStringAsync(HISTORY_FILE, JSON.stringify(validatedItems));
     }
 
     // Sort newest first
     return validatedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  } catch (error) {
-    console.error('Error loading history:', error);
+  } catch (_error) {
     return [];
   }
 }
@@ -280,10 +277,9 @@ export async function addScanToHistory(record) {
   try {
     const current = await getScanHistory();
     const updated = [record, ...current.filter((item) => item.id !== record.id)];
-    await AsyncStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(updated));
+    await FileSystem.writeAsStringAsync(HISTORY_FILE, JSON.stringify(updated));
     return updated;
-  } catch (error) {
-    console.error('Error saving scan to history:', error);
+  } catch (_error) {
     return [];
   }
 }
@@ -298,10 +294,9 @@ export async function deleteScanRecord(recordId, fileUri) {
     }
     const current = await getScanHistory();
     const filtered = current.filter((item) => item.id !== recordId);
-    await AsyncStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(filtered));
+    await FileSystem.writeAsStringAsync(HISTORY_FILE, JSON.stringify(filtered));
     return filtered;
   } catch (error) {
-    console.error('Error deleting scan:', error);
     throw error;
   }
 }
@@ -322,19 +317,17 @@ export async function sharePdfFile(fileUri, fileName = 'Dokumen.pdf') {
     });
     return true;
   } catch (error) {
-    console.error('Error sharing PDF:', error);
     throw error;
   }
 }
 
 /**
- * Export PDF to Android Storage (Downloads/Document folder) using StorageAccessFramework
- * or save to Media Library
+ * Export PDF to Android Storage using StorageAccessFramework (pure expo-file-system, no media-library)
+ * or system sharing sheet fallback
  */
 export async function exportToExternalStorage(fileUri, fileName = 'Dokumen.pdf') {
   if (Platform.OS === 'android') {
     try {
-      // 1. Try StorageAccessFramework to let user pick target folder (e.g. Downloads)
       const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
       if (permissions.granted) {
         const base64Data = await FileSystem.readAsStringAsync(fileUri, {
@@ -356,27 +349,12 @@ export async function exportToExternalStorage(fileUri, fileName = 'Dokumen.pdf')
           message: 'Berhasil diekspor ke folder pilihan!',
         };
       }
-    } catch (safError) {
-      console.warn('StorageAccessFramework warning/fallback:', safError);
-    }
-
-    // 2. Secondary fallback: MediaLibrary permission
-    try {
-      const mediaPerm = await MediaLibrary.requestPermissionsAsync();
-      if (mediaPerm.granted) {
-        await MediaLibrary.createAssetAsync(fileUri);
-        return {
-          success: true,
-          method: 'mediaLibrary',
-          message: 'Berhasil disimpan ke Penyimpanan Dokumen!',
-        };
-      }
-    } catch (mediaError) {
-      console.warn('MediaLibrary fallback error:', mediaError);
+    } catch (_safError) {
+      // Fall through to share sheet
     }
   }
 
-  // 3. Fallback for iOS or if user cancelled folder picker: use Sharing
+  // Fallback for iOS or if user cancelled folder picker: use Sharing
   await sharePdfFile(fileUri, fileName);
   return {
     success: true,
